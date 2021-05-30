@@ -1,5 +1,6 @@
 package plc.project;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -29,7 +30,21 @@ public final class Lexer {
      * whitespace where appropriate.
      */
     public List<Token> lex() {
-        throw new UnsupportedOperationException(); //TODO
+        /*
+        * char by char
+        * */
+        //match first char, then match in while until done
+        List<Token> tokens = new ArrayList<>();
+
+        while (chars.has(0)){
+            if(match("[ \b\n\r\t]")){
+                chars.skip();
+            }else {
+                tokens.add(lexToken());
+            }
+        }
+        //throw new UnsupportedOperationException();
+        return tokens;
     }
 
     /**
@@ -41,11 +56,23 @@ public final class Lexer {
      * by {@link #lex()}
      */
     public Token lexToken() {
-        throw new UnsupportedOperationException(); //TODO
+        if(peek("[A-Za-z_]")) {
+            return lexIdentifier();
+        }
+        else{
+            throw new UnsupportedOperationException();
+        }
     }
 
     public Token lexIdentifier() {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException();
+        //identifier ::= [A-Za-z_] [A-Za-z0-9_-]*
+        //If I am inside the function, is because the first character matched the start of the identifier
+        //need to advance the index, so match to advance the first character
+        match("[A-Za-z_]");
+        //matching the end until the end
+        while(match("[A-Za-z0-9_-]"));
+        return chars.emit(Token.Type.IDENTIFIER);
     }
 
     public Token lexNumber() {
@@ -73,8 +100,22 @@ public final class Lexer {
      * which should be a regex. For example, {@code peek("a", "b", "c")} would
      * return true if the next characters are {@code 'a', 'b', 'c'}.
      */
+    //Examines a sequence of parameters to determine if they match the next set of elements
+    //Does not advance stream index even of they are matched
+    //Lexer: examines characters
+    //Parser: examines tokens
     public boolean peek(String... patterns) {
-        throw new UnsupportedOperationException(); //TODO (in lecture)
+        //pass regex as a pattern
+        for(int i = 0; i<patterns.length; i++){
+            //If no longer have chars or not a string
+            //If the characters match, then match match the pattern
+            if(!chars.has(i) ||
+               !String.valueOf(chars.get(i)).matches(patterns[i])){
+                return false;
+            }
+        }
+        //throw new UnsupportedOperationException();
+        return true;
     }
 
     /**
@@ -82,8 +123,22 @@ public final class Lexer {
      * advances the character stream past all matched characters if peek returns
      * true. Hint - it's easiest to have this method simply call peek.
      */
+    //Performs the same matching
+    //Advances stream index the elements when matched
+    // Completes any additional consumptions steps
+    // Lexer and Parser implementations are logically identical, in both cases the appropriate stream, Character or Token is advanced
+
     public boolean match(String... patterns) {
-        throw new UnsupportedOperationException(); //TODO (in lecture)
+        //call the peek method, if true:
+        // advance char stream in fifo style
+        boolean peek = peek(patterns);
+        if(peek){
+            for(int i = 0; i < patterns.length; i++){
+                chars.advance();
+            }
+        }
+        //throw new UnsupportedOperationException();
+        return peek;
     }
 
     /**
@@ -94,6 +149,10 @@ public final class Lexer {
      * The only field you need to access is {@link #index} for any {@link
      * ParseException} which is thrown.
      */
+    //Provides sequential character delivery to the lexer
+        //input: the src string
+        //index: position within source
+        //length: size of current token
     public static final class CharStream {
 
         private final String input;
@@ -104,23 +163,31 @@ public final class Lexer {
             this.input = input;
         }
 
+        //Use this methods to deal with the char stream!
+
+        //checks if input has offset characters remaining
+        //ask has before get!
         public boolean has(int offset) {
             return index + offset < input.length();
         }
 
+        //returns the char at offset position
         public char get(int offset) {
             return input.charAt(index + offset);
         }
 
+        //move to the next char position in the input
         public void advance() {
             index++;
             length++;
         }
 
+        //resets the size of the current token to 0. used with advance
         public void skip() {
             length = 0;
         }
 
+        //instantiate the current token
         public Token emit(Token.Type type) {
             int start = index - length;
             skip();
@@ -130,3 +197,13 @@ public final class Lexer {
     }
 
 }
+/*
+\n
+"this is a newline
+within a string"
+
+String str = new String("this \n newline"); Literal newline char in the string
+String str = ne String("This is a different \\n representation of newline"); //"This is a different \n representation of newline"
+
+
+ */
