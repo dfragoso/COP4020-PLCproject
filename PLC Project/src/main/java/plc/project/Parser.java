@@ -104,7 +104,8 @@ public final class Parser {
      * Parses the {@code expression} rule.
      */
     public Ast.Expr parseExpression() throws ParseException {
-        throw new UnsupportedOperationException(); //TODO
+        parseLogicalExpression();
+        while ()
     }
 
     /**
@@ -149,7 +150,41 @@ public final class Parser {
      * not strictly necessary.
      */
     public Ast.Expr parsePrimaryExpression() throws ParseException {
-        throw new UnsupportedOperationException(); //TODO
+        if (match("NIL")) {
+            return new Ast.Expr.Literal(null);
+        }
+        else if (match("TRUE")) {
+            return new Ast.Expr.Literal(true);
+        }
+        else if (match("FALSE")) {
+            return new Ast.Expr.Literal(false);
+        }
+        else if (match(Token.Type.INTEGER) || match(Token.Type.DECIMAL) || match(Token.Type.CHARACTER) || match(Token.Type.STRING) {
+            return new Ast.Expr.Literal(tokens.get(-1).getLiteral());
+        }
+        else if (match('(')) {
+            Ast.Expr expr = parseExpression();
+            if (!match(')')) {
+                throw new ParseException("Expected closing parentheses", -1);
+            }
+            return Ast.Expr.Group(expr)
+        }
+        else if (match(Token.Type.IDENTIFIER)) {
+            String name = tokens.get(-1).getLiteral);
+            if match('(') {
+                Ast.Expr expr1 = parseExpression();
+                if match(',') {
+                    Ast.Expr expr2 = parseExpression();
+                    return new Ast.Expr.Group(expr2);
+                }
+                if (!match(')')) {
+                    throw new ParseException("Expected closing parentheses", -1);
+                }
+                return new Ast.Expr.Group(expr1);
+            }
+            return new Ast.Expr.Access(Optional.empty(), name);
+        }
+        return null;
     }
 
     /**
@@ -163,7 +198,26 @@ public final class Parser {
      * {@code peek(Token.Type.IDENTIFIER)} and {@code peek("literal")}.
      */
     private boolean peek(Object... patterns) {
-        throw new UnsupportedOperationException(); //TODO (in lecture)
+        for (int i = 0; i < patterns.length; i++)
+        {
+            if(!tokens.has(i)){
+                return false;
+            }
+            else if(patterns[i] instanceof Token.Type){
+                if(patterns[i] != tokens.get(i).getType()) {
+                    return false;
+                }
+            }
+            else if(patterns[i] instanceof String){
+                if (!patterns[i].equals(tokens.get(i).getLiteral())) {
+                    return false;
+                }
+            }
+            else {
+                throw new AssertionError("Invalid pattern object: " + patterns[i].getClass());
+            }
+        }
+        return true;
     }
 
     /**
@@ -171,7 +225,14 @@ public final class Parser {
      * and advances the token stream.
      */
     private boolean match(Object... patterns) {
-        throw new UnsupportedOperationException(); //TODO (in lecture)
+        boolean peek = peek(patterns);
+
+        if (peek) {
+            for (int i = 0; i < patterns.length; i++) {
+                tokens.advance();
+            }
+        }
+        return peek;
     }
 
     private static final class TokenStream {
