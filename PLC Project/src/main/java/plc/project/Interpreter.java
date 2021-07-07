@@ -7,7 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
+public class Interpreter implements Ast
+        .Visitor<Environment.PlcObject> {
 
     private Scope scope = new Scope(null);
 
@@ -45,7 +46,13 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Declaration ast) {
-        throw new UnsupportedOperationException(); //TODO (in lecture)
+        if (ast.getValue().isPresent()) {
+            scope.defineVariable(ast.getName(), visit(ast.getValue().get()));
+        }
+        else {
+            scope.defineVariable(ast.getName(), Environment.NIL);
+        }
+        return Environment.NIL;
     }
 
     @Override
@@ -65,7 +72,18 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.While ast) {
-        throw new UnsupportedOperationException(); //TODO (in lecture)
+        while (requireType(Boolean.class, visit(ast.getCondition()))) {
+            try {
+                scope = new Scope(scope);
+                for (Ast.Stmt stmt : ast.getStatements()) {
+                    visit(stmt);
+                }
+                // alternative code: ast.getStatements().forEach(this::visit);
+            } finally {
+                scope = scope.getParent();
+            }
+        }
+        return Environment.NIL;
     }
 
     @Override
