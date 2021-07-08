@@ -93,12 +93,17 @@ public class Interpreter implements Ast
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Literal ast) {
-        throw new UnsupportedOperationException(); //TODO
+        if (ast.getLiteral() != null) {
+            return Environment.create(ast.getLiteral());
+        } else {
+            return Environment.NIL;
+        }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Group ast) {
-        throw new UnsupportedOperationException(); //TODO
+
+        return Environment.NIL;
     }
 
     @Override
