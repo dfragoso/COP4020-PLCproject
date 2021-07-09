@@ -1,11 +1,15 @@
 package plc.project;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.EventListener;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.lang.Comparable;
 
 public class Interpreter implements Ast
         .Visitor<Environment.PlcObject> {
@@ -102,13 +106,54 @@ public class Interpreter implements Ast
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Group ast) {
-
-        return Environment.NIL;
+        throw new UnsupportedOperationException(); //TODO
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Binary ast) {
-        throw new UnsupportedOperationException(); //TODO
+        switch (ast.getOperator()) {
+            case "AND":
+                if (requireType(Boolean.class, visit(ast.getLeft()))|| !requireType(Boolean.class, visit(ast.getLeft()))) {
+                    if (requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))) {
+                        if (ast.getLeft().equals(ast.getRight())) {
+                            return Environment.create(true);
+                        } else {
+                            return Environment.create(false);
+                        }
+                    }
+                    throw new RuntimeException("Left and Right must be same type");
+                }
+                throw new RuntimeException("must be a boolean");
+            case "OR":
+                if (requireType(Boolean.class, visit(ast.getLeft())) || requireType(Boolean.class, visit(ast.getLeft()))) {
+                    return Environment.create(true);
+                } else {
+                    return Environment.create(false);
+                }
+            case "<":
+
+            case "<=":
+
+            case ">":
+
+            case ">=":
+
+            case "==":
+
+            case "!=":
+
+            case "+":
+
+            case "-":
+
+            case "*":
+
+            case "/":
+
+            default:
+                return Environment.NIL;
+
+        }
     }
 
     @Override
