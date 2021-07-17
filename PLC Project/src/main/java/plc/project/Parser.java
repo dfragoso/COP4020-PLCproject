@@ -165,25 +165,20 @@ public final class Parser {
      */
     public Ast.Stmt.Declaration parseDeclarationStatement() throws ParseException {
         //'LET' identifier ('=' expression)? ';'
-        if(match(Token.Type.IDENTIFIER)) {
-            String name = tokens.get(-1).getLiteral();
-            //Only name, no other expression
-            if(match(";")){
-                return new Ast.Stmt.Declaration(name, Optional.empty());
-            }
-            //There is an expression in the declaration
-            if(match("=")){
-                Ast.Expr expr = parseExpression();
-                if(!match(";")){
-                    throw new ParseException("Missing a semicolon at the end", tokens.index);
-                }
-                return new Ast.Stmt.Declaration(name, Optional.of(expr));
-            }
-        }
-        else{
+        //LET already matched in statement method
+        if(!match(Token.Type.IDENTIFIER)) {
             throw new ParseException("Invalid declaration syntax", tokens.index);
         }
-        throw new UnsupportedOperationException(); //TODO
+        String name = tokens.get(-1).getLiteral();
+        Optional<Ast.Expr> value = Optional.empty();
+        //There is an expression in the declaration
+        if(match("=")){
+            value = Optional.of(parseExpression());
+        }
+        if(!match(";")){
+            throw new ParseException("Missing a semicolon at the end", tokens.index);
+        }
+        return new Ast.Stmt.Declaration(name, value);
     }
 
     /**
