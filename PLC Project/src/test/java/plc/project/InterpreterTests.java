@@ -312,12 +312,26 @@ final class InterpreterTests {
                         ),
                         BigInteger.valueOf(11)
                 ),
+                Arguments.of("Subtraction",
+                        new Ast.Expr.Binary("+",
+                                new Ast.Expr.Literal(BigInteger.TEN),
+                                new Ast.Expr.Literal(BigInteger.TEN)
+                        ),
+                        BigInteger.valueOf(20)
+                ),
                 Arguments.of("Division",
                         new Ast.Expr.Binary("/",
                                 new Ast.Expr.Literal(new BigDecimal("1.2")),
                                 new Ast.Expr.Literal(new BigDecimal("3.4"))
                         ),
                         new BigDecimal("0.4")
+                ),
+                Arguments.of("Division Ints",
+                        new Ast.Expr.Binary("/",
+                                new Ast.Expr.Literal(new BigDecimal("4")),
+                                new Ast.Expr.Literal(new BigDecimal("2"))
+                        ),
+                        new BigDecimal("2")
                 )
         );
     }

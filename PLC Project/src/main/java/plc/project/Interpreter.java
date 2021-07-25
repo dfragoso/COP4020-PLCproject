@@ -1,5 +1,7 @@
 package plc.project;
 
+import com.sun.corba.se.impl.ior.OldJIDLObjectKeyTemplate;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -39,22 +41,34 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Source ast) {
+        //Source does not create a new scope , because it will use the base scope already created
+        // at the instantiation of the interpreter
         throw new UnsupportedOperationException(); //TODO
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Field ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        if(ast.getValue().isPresent()){
+            //scope has been already been defined
+            scope.defineVariable( ast.getName(), visit(ast.getValue().get()) );
+        }else{
+            scope.defineVariable(ast.getName(), Environment.NIL);
+        }
+        return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Method ast) {
+        //Creates a new scope since it is a stmt block
         throw new UnsupportedOperationException(); //TODO
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Expression ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+
+        return Environment.NIL;
     }
 
     @Override
@@ -66,7 +80,6 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
             scope.defineVariable( ast.getName(), visit(ast.getValue().get()) );
         }else{
             scope.defineVariable(ast.getName(), Environment.NIL);
-
         }
         return Environment.NIL;
     }
@@ -78,16 +91,19 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.If ast) {
+        //Creates a new scope since it is a stmt block
         throw new UnsupportedOperationException(); //TODO
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.For ast) {
+        //Creates a new scope since it is a stmt block
         throw new UnsupportedOperationException(); //TODO
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.While ast) {
+        //Creates a new scope since it is a stmt block
         while (requireType(Boolean.class, visit(ast.getCondition()))){
             try {
                scope = new Scope(scope);
@@ -109,17 +125,142 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Literal ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        if(ast.getLiteral() != null){
+            return Environment.create(ast.getLiteral());
+        }else{
+            return Environment.NIL;
+        }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Group ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        //Evaluates the contained expression, returning it's value.
+        // (1)->1 , (1 + 10)->11
+        return visit(ast.getExpression());
+//        if(ast.getExpression().){
+//            return new Environment.PlcObject(scope, ast.getType().getName());
+//        }else{
+//            throw new UnsupportedOperationException(); //TODO
+//        }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Binary ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        //Evaluates arguments based on the specific binary operator,
+        // returning the appropriate result for the operation
+        // (hint: use requireType and Environment.create as needed)
+        //requireType(Boolean.class, visit(ast.getCondition()))
+        Object leftHand = visit(ast.getLeft()).getValue();
+        Object rightHand = visit(ast.getRight()).getValue();
+       switch (ast.getOperator()){
+           case "AND":
+               Ast.Expr.Literal falseTemp = new Ast.Expr.Literal(false);
+               if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
+                    if(ast.getLeft().equals(falseTemp)){
+                        return Environment.create(false);
+                    }
+                    else {
+                        if(requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))){
+                            if(ast.getRight().equals(falseTemp)){
+                                return Environment.create(false) ;
+                            }
+                        }
+                        else{
+                            throw new RuntimeException("Invalid operands for AND operation");
+                        }
+                    }
+                    return Environment.create(true);
+               }else{
+                   throw new RuntimeException("Invalid operands for AND operation");
+               }
+               //break;
+           case "OR":
+               Ast.Expr.Literal trueTemp = new Ast.Expr.Literal(true);
+               if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
+                   if(ast.getLeft().equals(trueTemp)){
+                       return Environment.create(true);
+                   }
+                   else {
+                       if(requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))){
+                           if(ast.getRight().equals(trueTemp)){
+                               return Environment.create(true) ;
+                           }
+                       }
+                       else{
+                           throw new RuntimeException("Invalid operands for OR operation");
+                       }
+                   }
+                   return Environment.create(true);
+               }
+           case "+":
+               if(leftHand.getClass() == BigInteger.class && rightHand.getClass() == BigInteger.class){
+                   BigInteger result = ((BigInteger) leftHand).add((BigInteger) rightHand);
+                   return Environment.create(result);
+               }
+               if(leftHand.getClass() == BigDecimal.class && rightHand.getClass() == BigDecimal.class){
+                    BigDecimal result = (((BigDecimal) leftHand).add((BigDecimal) rightHand));
+                   return Environment.create(result);
+               }
+               if(leftHand.getClass() == String.class || rightHand.getClass() == String.class){
+                   //concat them
+                   return Environment.create(leftHand.toString() + rightHand.toString());
+               }
+               throw new RuntimeException("Invalid operands for addition");
+           case "-":
+               if(leftHand.getClass() == rightHand.getClass()) {
+                   if (leftHand.getClass() == BigInteger.class) {
+                       BigInteger result = ((BigInteger) leftHand).subtract((BigInteger) rightHand);
+                       return Environment.create(result);
+                   } else if (leftHand.getClass() == BigDecimal.class){
+                       BigDecimal result = ((BigDecimal) leftHand).subtract((BigDecimal) rightHand);
+                       return Environment.create(result);
+                   }
+               }
+               throw new RuntimeException("Invalid operands for subtraction");
+           case "*":
+               if(leftHand.getClass() == rightHand.getClass()) {
+                   if (leftHand.getClass() == BigInteger.class) {
+                       BigInteger result = ((BigInteger) leftHand).multiply((BigInteger) rightHand);
+                       return Environment.create(result);
+                   } else if (leftHand.getClass() == BigDecimal.class){
+                       BigDecimal result = ((BigDecimal) leftHand).multiply((BigDecimal) rightHand);
+                       return Environment.create(result);
+                   }
+               }
+               throw new RuntimeException("Invalid operands for subtraction");
+           case "/":
+               if(leftHand.getClass() == rightHand.getClass()) {
+                   if (leftHand.getClass() == BigInteger.class) {
+                       BigInteger result = ((BigInteger) leftHand).divide((BigInteger) rightHand);
+                       return Environment.create(result);
+                   } else if (leftHand.getClass() == BigDecimal.class){
+                       BigDecimal result = ((BigDecimal) leftHand).divide((BigDecimal) rightHand);
+                       result = result.setScale(0, RoundingMode.HALF_EVEN);
+                       return Environment.create(result);
+                   }
+               }
+               throw new RuntimeException("Invalid operands for subtraction");
+           case "==":
+               if(leftHand.equals(rightHand)){
+                   return Environment.create(true);
+               }
+               else{
+                   return Environment.create(false);
+               }
+           case "!=":
+               if(!leftHand.equals(rightHand)){
+                   return Environment.create(true);
+               }
+               else{
+                   return Environment.create(false);
+               }
+
+           default:
+               throw new RuntimeException("Not a valid binary expression");
+       }
     }
 
     @Override
@@ -130,6 +271,11 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Expr.Function ast) {
         throw new UnsupportedOperationException(); //TODO
+        //Environment.Function func = new Environment.Function()
+//        if(ast.getReceiver().isPresent()){
+//            scope.defineFunction(ast.getName(), );
+//        }
+        //return Environment.PlcObject;
     }
 
     /**

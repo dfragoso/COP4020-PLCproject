@@ -19,6 +19,7 @@ public final class Environment {
 
     private static final Map<String, Type> TYPES = new HashMap<>();
 
+    //Getting the type referent to the variable name and return the Type
     public static Type getType(String name) {
         if (!TYPES.containsKey(name)) {
             throw new RuntimeException("Unknown type " + name + ".");
@@ -26,6 +27,7 @@ public final class Environment {
         return TYPES.get(name);
     }
 
+    //Adding a new Type to the map using getName() as key
     public static void registerType(Type type) {
         if (TYPES.containsKey(type.getName())) {
             throw new IllegalArgumentException("Duplicate registration of type " + type.getName() + ".");
@@ -33,6 +35,7 @@ public final class Environment {
         TYPES.put(type.getName(), type);
     }
 
+    //Creating new PlcObject
     public static PlcObject create(Object value) {
         return new PlcObject(new Scope(null), value);
     }
@@ -59,6 +62,7 @@ public final class Environment {
             this.scope = scope;
         }
 
+        //Getters for the type information
         public String getName() {
             return name;
         }
