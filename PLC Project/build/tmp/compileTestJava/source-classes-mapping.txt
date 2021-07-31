@@ -8,3 +8,5 @@ plc/project/InterpreterTests.java
  plc.project.InterpreterTests
 plc/project/ParserExpressionTests.java
  plc.project.ParserExpressionTests
+plc/project/GeneratorTests.java
+ plc.project.GeneratorTests
