@@ -4,11 +4,11 @@ plc/homework/RegexTests.java
  plc.homework.RegexTests
 plc/project/ParserTests.java
  plc.project.ParserTests
-plc/project/ParserExpressionTests.java
- plc.project.ParserExpressionTests
-plc/project/InterpreterTests.java
- plc.project.InterpreterTests
 plc/project/AnalyzerTests.java
  plc.project.AnalyzerTests
+plc/project/InterpreterTests.java
+ plc.project.InterpreterTests
 plc/project/GeneratorTests.java
  plc.project.GeneratorTests
+plc/project/ParserExpressionTests.java
+ plc.project.ParserExpressionTests

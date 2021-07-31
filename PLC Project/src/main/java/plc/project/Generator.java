@@ -1,6 +1,7 @@
 package plc.project;
 
 import java.io.PrintWriter;
+import java.util.Calendar;
 
 public final class Generator implements Ast.Visitor<Void> {
 
@@ -38,6 +39,7 @@ public final class Generator implements Ast.Visitor<Void> {
     public Void visit(Ast.Source ast) {
         //For source, I need to create a class
         // create a "class Main {"
+
         // declare the fields
         //declare "public static void main (String[] args){
         //            System.exit(new Main().main());
@@ -63,7 +65,7 @@ public final class Generator implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Stmt.Expression ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        print(ast.getExpression(), ";");
         return null;
     }
 
@@ -89,19 +91,64 @@ public final class Generator implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Stmt.Assignment ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        print(ast.getReceiver(), " = ", ast.getValue(), ";");
         return null;
     }
 
     @Override
     public Void visit(Ast.Stmt.If ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        //only if with statements
+        print("if (", ast.getCondition(), ") {");
+        newline(++indent);
+        //generation of all the statements each ending with a newline
+        if(!ast.getThenStatements().isEmpty()) {
+            for(int i = 0; i < ast.getThenStatements().size(); i++){
+                //print the next statement
+                print(ast.getThenStatements().get(i));
+                if(i != 0){
+                    //setup the next line
+                    newline(indent);
+                }
+            }
+        }
+        newline(--indent);
+        print("}");
+
+        //If there is an else block..
+        if(!ast.getElseStatements().isEmpty()){
+            print(" else {");
+            newline(++indent);
+            for(int i = 0; i < ast.getElseStatements().size(); i++){
+                //print the next statement
+                print(ast.getElseStatements().get(i));
+                if(i != 0){
+                    //setup the next line
+                    newline(indent);
+                }
+            }
+            newline(--indent);
+            print("}");
+        }
+
         return null;
     }
 
     @Override
     public Void visit(Ast.Stmt.For ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        print("for (", ast.getValue().getType().getJvmName(), " ", ast.getName(), " ", ":", " ", ast.getValue());
+        print(" {");
+        newline(++indent);
+        for(int i = 0; i < ast.getStatements().size(); i++){
+            //check if newline and indent are needed
+            if(i != 0){
+                //setup the next line
+                newline(indent);
+            }
+            //print the next statement
+            print(ast.getStatements().get(i));
+        }
+        newline(--indent);
+        print("}");
         return null;
     }
 
@@ -136,7 +183,8 @@ public final class Generator implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Stmt.Return ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        print("return ", ast.getValue(), ";");
+
         return null;
     }
 
@@ -144,32 +192,72 @@ public final class Generator implements Ast.Visitor<Void> {
     public Void visit(Ast.Expr.Literal ast) {
         //throw new UnsupportedOperationException(); //TODO
         //For characters and strings, need to include the surrounding quotes
-
-        print(ast.getLiteral());
+        if(ast.getType().getJvmName() == "String"){
+            print("\"", ast.getLiteral(), "\"");
+        }else{
+            print(ast.getLiteral());
+        }
         return null;
     }
 
     @Override
     public Void visit(Ast.Expr.Group ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        print("(", ast.getExpression(), ")");
+
         return null;
     }
 
     @Override
     public Void visit(Ast.Expr.Binary ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        print(ast.getLeft(), " ");
+
+        if(ast.getOperator() == "AND"){
+            print("&&");
+        }else if(ast.getOperator() == "OR"){
+            print("||");
+        }else {
+            print(ast.getOperator());
+        }
+
+        print(" ", ast.getRight());
+
         return null;
     }
 
     @Override
     public Void visit(Ast.Expr.Access ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        //If the expression has a receiver, evaluate it and return the value of the appropriate field,
+        if(ast.getReceiver().isPresent()){
+            print(ast.getReceiver(), ".");
+        }
+        // otherwise return the value of the appropriate variable in the current scope.
+        print(ast.getVariable().getJvmName());
+
         return null;
     }
 
     @Override
     public Void visit(Ast.Expr.Function ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        //If the function has a receiver, evaluate it and return the value of the appropriate field,
+        if(ast.getReceiver().isPresent()){
+            print(ast.getReceiver().get(), ".");
+        }
+        // otherwise return the jvmName of the function
+        print(ast.getFunction().getJvmName());
+        if(!ast.getArguments().isEmpty()){
+            print("(");
+            for (int i = 0; i < ast.getArguments().size(); i++){
+                print(ast.getArguments().get(i));
+                if(i == ast.getArguments().size()-1){
+                    break;
+                }
+                print(", ");
+            }
+            print(")");
+        }else {
+            print("()");
+        }
+
         return null;
     }
 

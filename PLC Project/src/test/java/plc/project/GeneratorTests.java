@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -76,6 +77,7 @@ public class GeneratorTests {
                         )), ast -> ast.setVariable(new Environment.Variable("name", "name", Environment.Type.DECIMAL, Environment.NIL))),
                         "double name = 1.0;"
                 )
+
         );
     }
 
@@ -178,6 +180,31 @@ public class GeneratorTests {
                 )
         );
     }
+//    @ParameterizedTest(name = "{0}")
+//    @MethodSource
+//    void testForExpression(String test, Ast.Stmt.For ast, String expected) {
+//        test(ast, expected);
+//    }
+//
+//    private static Stream<Arguments> testForExpression() {
+//        return Stream.of(
+//                Arguments.of("If",
+//                        // FOR num IN list DO
+//                        //    print(num);
+//                        // END
+//                        new Ast.Stmt.For(
+//                                "num",
+//                                new Ast.Expr.Literal("list"),
+//                                Arrays.asList(new Ast.Stmt.Expression(new Ast.Expr.Function(Optional.empty(), "print", new Ast.Stmt.Expression(new Ast.Expr.Literal())))
+//                        ),
+//                        String.join(System.lineSeparator(),
+//                                "for (int num : list) {",
+//                                "    System.out.println(num);",
+//                                "}"
+//                        )
+//                )
+//        );
+//    }
 
     /**
      * Helper function for tests, using a StringWriter as the output stream.

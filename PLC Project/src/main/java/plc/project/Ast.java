@@ -187,7 +187,7 @@ public abstract class Ast {
 
     }
 
-    public static abstract class Stmt extends Ast {
+    public static class Stmt extends Ast {
 
         public static final class Expression extends Stmt {
 
