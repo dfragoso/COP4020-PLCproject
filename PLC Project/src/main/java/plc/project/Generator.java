@@ -51,7 +51,7 @@ public final class Generator implements Ast.Visitor<Void> {
         //declare "public static void main (String[] args){
         //            System.exit(new Main().main());
         //         {
-        print("public static void main (String[] args){");
+        print("public static void main(String[] args){");
         newline(++indent);
         print("System.exit(new Main().main());");
         newline(--indent);
