@@ -39,27 +39,53 @@ public final class Generator implements Ast.Visitor<Void> {
     public Void visit(Ast.Source ast) {
         //For source, I need to create a class
         // create a "class Main {"
-
+        print("public class Main {");
+        newline(++indent);
         // declare the fields
+
         //declare "public static void main (String[] args){
         //            System.exit(new Main().main());
         //         {
+        print("public static void main (String[] args){");
+        newline(++indent);
+        print("System.exit(new Main().main());");
+        newline(--indent);
+        print("}");
+
         // declare each of our methods (VISIT each of the methods!!!)
         // one of our methods is called main()!
+
+
         // print "}" to close the class Main
-        //throw new UnsupportedOperationException(); //TODO
+        newline(--indent);
+        print("}");
+
         return null;
     }
 
     @Override
     public Void visit(Ast.Field ast) {
-        //throw new UnsupportedOperationException(); //TODO
+        /*Generates a field expression.
+        The expression should consist of the type name and the variable name stored in the AST
+        separated by a single space character.
+        If a value is present, then an equal sign character with surrounding single spaces is generated
+        followed by the variable value (expression). A semicolon should be generated at the end.
+        *
+        * */
+        print(ast.getTypeName(), " ", ast.getName());
+        if(!ast.getValue().isPresent()){
+            print(" = ", ast.getValue().get());
+        }
+
+        print(";");
+
         return null;
     }
 
     @Override
     public Void visit(Ast.Method ast) {
-        //throw new UnsupportedOperationException(); //TODO
+
+
         return null;
     }
 
