@@ -42,7 +42,12 @@ public final class Generator implements Ast.Visitor<Void> {
         print("public class Main {");
         newline(++indent);
         // declare the fields
-
+        if(!ast.getFields().isEmpty()){
+            for (int i = 0; i < ast.getFields().size(); i++){
+                print(ast.getFields().get(i));
+                newline(indent);
+            }
+        }
         //declare "public static void main (String[] args){
         //            System.exit(new Main().main());
         //         {
@@ -54,7 +59,12 @@ public final class Generator implements Ast.Visitor<Void> {
 
         // declare each of our methods (VISIT each of the methods!!!)
         // one of our methods is called main()!
-
+        if(!ast.getMethods().isEmpty()){
+            for(int i = 0; i < ast.getMethods().size(); i++){
+                visit(ast.getMethods().get(i));
+                newline(indent);
+            }
+        }
 
         // print "}" to close the class Main
         newline(--indent);
