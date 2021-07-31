@@ -24,7 +24,6 @@ public final class Scope {
         defineVariable(name, name, Environment.Type.ANY, value);
     }
 
-    //Creates a new variable if not already defined in the scope
     public Environment.Variable defineVariable(String name, String jvmName, Environment.Type type, Environment.PlcObject value) {
         if (variables.containsKey(name)) {
             throw new RuntimeException("The variable " + name + " is already defined in this scope.");
@@ -35,7 +34,6 @@ public final class Scope {
         }
     }
 
-    //Recursively search for a variable within the scope
     public Environment.Variable lookupVariable(String name) {
         if (variables.containsKey(name)) {
             return variables.get(name);
@@ -46,7 +44,6 @@ public final class Scope {
         }
     }
 
-    //Defining a new function in the scope, arity = # of formal parameters defined for a function
     public void defineFunction(String name, int arity, Function<List<Environment.PlcObject>, Environment.PlcObject> function) {
         List<Environment.Type> parameterTypes = new ArrayList<>();
         for (int i = 0; i < arity; i++) {
@@ -65,7 +62,6 @@ public final class Scope {
         }
     }
 
-    //Recursively looking for a function within the scope
     public Environment.Function lookupFunction(String name, int arity) {
         if (functions.containsKey(name + "/" + arity)) {
             return functions.get(name + "/" + arity);
