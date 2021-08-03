@@ -87,7 +87,7 @@ public final class AnalyzerTests {
                         })
                 ),
                 Arguments.of("Initialization",
-                        // LET name = 1;
+
                         new Ast.Stmt.Declaration("name", Optional.empty(), Optional.of(new Ast.Expr.Literal(BigInteger.ONE))),
                         init(new Ast.Stmt.Declaration("name", Optional.empty(), Optional.of(
                                 init(new Ast.Expr.Literal(BigInteger.ONE), ast -> ast.setType(Environment.Type.INTEGER))

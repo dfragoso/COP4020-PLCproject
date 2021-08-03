@@ -53,25 +53,36 @@ public final class Parser {
      */
     public Ast.Field parseField() throws ParseException {
         //field ::= 'LET' identifier ('=' expression)? ';' -- same as LET in statement
+        //field ::= 'LET' identifier ':' identifier ('=' expression)? ';'
+        String name;
+        String typeName = new String();
+        Optional<Ast.Expr> value = Optional.empty();
         if(match(Token.Type.IDENTIFIER)) {
-            String name = tokens.get(-1).getLiteral();
+            name = tokens.get(-1).getLiteral();
+
             //Only name, no other expression
+            if (match(":")){
+                if (match(Token.Type.IDENTIFIER)){
+                    typeName = tokens.get(-1).getLiteral();
+                }
+            }
+
             if(match(";")){
                 return new Ast.Field(name, Optional.empty());
             }
             //There is an expression in the declaration
             if(match("=")){
-                Ast.Expr expr = parseExpression();
+                value = Optional.of(parseExpression());
                 if(!match(";")){
                     throw new ParseException("Missing a semicolon at the end", tokens.index);
                 }
-                return new Ast.Field(name, Optional.of(expr));
             }
+            return new Ast.Field(name, typeName, value);
+
         }
         else{
             throw new ParseException("Invalid declaration syntax", tokens.index);
         }
-        throw new UnsupportedOperationException(); //TODO
     }
 
     /**
@@ -80,9 +91,12 @@ public final class Parser {
      */
     public Ast.Method parseMethod() throws ParseException {
         //method ::= 'DEF' identifier '(' (identifier (',' identifier)*)? ')' 'DO' statement* 'END'
+        //method ::= 'DEF' identifier '(' (identifier ':' identifier (',' identifier ':' identifier)* )? ')' (':' identifier)? 'DO'
         String name = new String();
         List<String> parameters = new ArrayList<>();
+        List<String> parameterTypeNames = new ArrayList<>();
         List<Ast.Stmt> statements = new ArrayList<>();
+        Optional<String> returnTypeName = Optional.empty();
         if(match(Token.Type.IDENTIFIER)){
             name = tokens.get(-1).getLiteral();
         }
@@ -90,16 +104,33 @@ public final class Parser {
             if(match(Token.Type.IDENTIFIER)){
                  String param = tokens.get(-1).getLiteral();
                  parameters.add(param);
+                if(match(":")){
+                    if(match(Token.Type.IDENTIFIER)){
+                        String paramType = tokens.get(0).getLiteral();
+                        parameterTypeNames.add(paramType);
+                    }
+                }
             }
             if(match(",")){
                 while(match(Token.Type.IDENTIFIER)){
                     String param = tokens.get(-1).getLiteral();
                     parameters.add(param);
+                    if(match(":")){
+                        if(match(Token.Type.IDENTIFIER)){
+                            String paramType = tokens.get(0).getLiteral();
+                            parameterTypeNames.add(paramType);
+                        }
+                    }
                 }
             }
         }
         if(!match(")")){
             throw new ParseException("Missing closing parenthesis", tokens.index);
+        }
+        if(match(":")){
+            if(match(Token.Type.IDENTIFIER)){
+                returnTypeName = Optional.of(tokens.get(-1).getLiteral());
+            }
         }
         if(!match("DO")){
             throw new ParseException("Missing DO keyword", tokens.index);
@@ -114,7 +145,7 @@ public final class Parser {
         if(!match("END")){
             throw new ParseException("Missing END keyword", tokens.index);
         }
-        return new Ast.Method(name, parameters, statements);
+        return new Ast.Method(name, parameters, parameterTypeNames, returnTypeName, statements);
     }
 
     /**
@@ -165,11 +196,19 @@ public final class Parser {
      */
     public Ast.Stmt.Declaration parseDeclarationStatement() throws ParseException {
         //'LET' identifier ('=' expression)? ';'
+        //New:
+        //'LET' identifier (':' identifier)? ('=' expression)? ';'
         //LET already matched in statement method
+        Optional<String> typeName = Optional.empty();
         if(!match(Token.Type.IDENTIFIER)) {
             throw new ParseException("Invalid declaration syntax", tokens.index);
         }
         String name = tokens.get(-1).getLiteral();
+        if(match(":")){
+           if(match(Token.Type.IDENTIFIER)){
+               typeName = Optional.of(tokens.get(-1).getLiteral());
+           }
+        }
         Optional<Ast.Expr> value = Optional.empty();
         //There is an expression in the declaration
         if(match("=")){
@@ -178,7 +217,7 @@ public final class Parser {
         if(!match(";")){
             throw new ParseException("Missing a semicolon at the end", tokens.index);
         }
-        return new Ast.Stmt.Declaration(name, value);
+        return new Ast.Stmt.Declaration(name, typeName, value);
     }
 
     /**
