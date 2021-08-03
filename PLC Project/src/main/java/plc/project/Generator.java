@@ -40,6 +40,7 @@ public final class Generator implements Ast.Visitor<Void> {
         //For source, I need to create a class
         // create a "class Main {"
         print("public class Main {");
+        newline(indent);
         newline(++indent);
         // declare the fields
         if(!ast.getFields().isEmpty()){
@@ -51,7 +52,7 @@ public final class Generator implements Ast.Visitor<Void> {
         //declare "public static void main (String[] args){
         //            System.exit(new Main().main());
         //         {
-        print("public static void main(String[] args){");
+        print("public static void main(String[] args) {");
         newline(++indent);
         print("System.exit(new Main().main());");
         newline(--indent);
@@ -59,15 +60,17 @@ public final class Generator implements Ast.Visitor<Void> {
 
         // declare each of our methods (VISIT each of the methods!!!)
         // one of our methods is called main()!
+        newline(0);
+        newline(indent);
         if(!ast.getMethods().isEmpty()){
             for(int i = 0; i < ast.getMethods().size(); i++){
                 visit(ast.getMethods().get(i));
-                newline(indent);
+                newline(0);
             }
         }
 
         // print "}" to close the class Main
-        newline(--indent);
+        newline(0);
         print("}");
 
         return null;
@@ -94,54 +97,39 @@ public final class Generator implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Method ast) {
-        /*Generates a method expression. The method should begin with the method's JVM type name
-        followed by the method name, both of which are found in the AST. Then the method should
-        generate a comma-separated list of the method parameters surrounded by parenthesis.
-        Each parameter will consist of a JVM type name and the parameter name.
-         A single space will be placed after the list comma and before the next parameter type.
-         No space will be placed after the opening parenthesis and before the closing parenthesis.
-
-         Following a single space, the opening brace should be generated on the same line.
-         If the statements is empty the closing brace should also be on the same line, otherwise
-         each statement is generated on a new line with increased indentation followed by a closing
-         brace on a new line with the original indentation.
-         */
+        /*The method should begin with the method's JVM type name
+        followed by the method name,
+        * */
         if (ast.getFunction().getJvmName() == "main") {
-            print ("int");
+            print ("int ");
         }
         else {
-            print(ast.getFunction().getJvmName());
+            print(ast.getFunction().getJvmName(), " ");
         }
-        print(" ", ast.getName(), "(");
-        if(!ast.getParameters().isEmpty()) {
-            for (int i = 0; i < ast.getParameters().size(); i++) {
-                //loops to print all parameters
-                print(ast.getParameterTypeNames().get(i), " ", ast.getParameters().get(i));
-                if (i != ast.getParameters().size()) {
-                    //only adds comma if not at the end of the list
-                    print (", ");
-                }
+        print(ast.getFunction().getName(), "(");
+        //Then the method should generate a comma-separated list of the method parameters surrounded by parenthesis.
+        for(int i = 0; i < ast.getParameters().size(); i++){
+            //Each parameter will consist of a JVM type name and the parameter name.
+            print(ast.getParameterTypeNames().get(i), " ", ast.getParameters().get(i));
+            if(i != ast.getParameters().size()-1){
+                print(", ");
             }
         }
-        print (")", " {");
-        if(!ast.getStatements().isEmpty()) {
-            //set up the next line
-            newline(++indent); //handles i == 0 case
-            //handle all statements in the while statement body
-            for(int i = 0; i < ast.getStatements().size(); i++){
-                //check if newline and indent are needed
-                if(i != 0){
-                    //setup the next line
+        print(") {");
+        if(!ast.getStatements().isEmpty()){
+            newline(++indent);
+            int temp = 0;
+            for (int i = 0; i < ast.getStatements().size(); i++) {
+                print(ast.getStatements().get(i));
+                if(i == ast.getStatements().size()-1){
+                    newline(--indent);
+                }else{
                     newline(indent);
                 }
-                //print the next statement
-                print(ast.getStatements().get(i));
             }
-            //set up the next line
-            newline(--indent);
         }
-        //close the while
         print("}");
+
         return null;
     }
 

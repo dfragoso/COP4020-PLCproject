@@ -1,26 +1,38 @@
 package plc.project;
 
-import com.sun.org.apache.xpath.internal.operations.Bool;
+import com.sun.corba.se.impl.ior.OldJIDLObjectKeyTemplate;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.EventListener;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.lang.Comparable;
 
-public class Interpreter implements Ast
-        .Visitor<Environment.PlcObject> {
+public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     private Scope scope = new Scope(null);
 
     public Interpreter(Scope parent) {
+        //parent scope is inherited by subsequent scopes
         scope = new Scope(parent);
         scope.defineFunction("print", 1, args -> {
             System.out.println(args.get(0).getValue());
             return Environment.NIL;
+        });
+        scope.defineFunction("logarithm", 1, arg_list -> {
+            if(!(arg_list.get(0).getValue() instanceof BigDecimal)){
+                throw new RuntimeException("Expected type BigDecimal, received" +
+                        arg_list.get(0).getValue().getClass().getName() + ".");
+            }
+            BigDecimal bd1 = (BigDecimal) arg_list.get(0).getValue();
+            BigDecimal bd2 = requireType(
+                    BigDecimal.class,
+                    Environment.create(arg_list.get(0).getValue())
+            );
+            BigDecimal result = BigDecimal.valueOf(Math.log(bd2.doubleValue()));
+            return Environment.create(result);
         });
     }
 
@@ -30,30 +42,43 @@ public class Interpreter implements Ast
 
     @Override
     public Environment.PlcObject visit(Ast.Source ast) {
+        //Source does not create a new scope , because it will use the base scope already created
+        // at the instantiation of the interpreter
         throw new UnsupportedOperationException(); //TODO
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Field ast) {
-        throw new UnsupportedOperationException(); //TODO
+        if(ast.getValue().isPresent()){
+            //scope has been already been defined
+            scope.defineVariable( ast.getName(), visit(ast.getValue().get()) );
+        }else{
+            scope.defineVariable(ast.getName(), Environment.NIL);
+        }
+        return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Method ast) {
+        //Creates a new scope since it is a stmt block
         throw new UnsupportedOperationException(); //TODO
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Expression ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+
+        return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Declaration ast) {
-        if (ast.getValue().isPresent()) {
-            scope.defineVariable(ast.getName(), visit(ast.getValue().get()));
-        }
-        else {
+        //LET name; scope={}/NIL/scope={name=NIL}
+        //LET name=1; scope={}/NIL/scope={name=1}
+        if(ast.getValue().isPresent()){
+            //scope has been already been defined
+            scope.defineVariable( ast.getName(), visit(ast.getValue().get()) );
+        }else{
             scope.defineVariable(ast.getName(), Environment.NIL);
         }
         return Environment.NIL;
@@ -66,24 +91,27 @@ public class Interpreter implements Ast
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.If ast) {
+        //Creates a new scope since it is a stmt block
         throw new UnsupportedOperationException(); //TODO
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.For ast) {
+        //Creates a new scope since it is a stmt block
         throw new UnsupportedOperationException(); //TODO
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.While ast) {
-        while (requireType(Boolean.class, visit(ast.getCondition()))) {
+        //Creates a new scope since it is a stmt block
+        while (requireType(Boolean.class, visit(ast.getCondition()))){
             try {
                 scope = new Scope(scope);
-                for (Ast.Stmt stmt : ast.getStatements()) {
-                    visit(stmt);
+                for(Ast.Stmt stmt : ast.getStatements()){
+                    visit( stmt );
                 }
-                // alternative code: ast.getStatements().forEach(this::visit);
-            } finally {
+                //ast.getStatement().forEach(this::visit);
+            }finally {
                 scope = scope.getParent();
             }
         }
@@ -97,62 +125,141 @@ public class Interpreter implements Ast
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Literal ast) {
-        if (ast.getLiteral() != null) {
+        //throw new UnsupportedOperationException(); //TODO
+        if(ast.getLiteral() != null){
             return Environment.create(ast.getLiteral());
-        } else {
+        }else{
             return Environment.NIL;
         }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Group ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        //Evaluates the contained expression, returning it's value.
+        // (1)->1 , (1 + 10)->11
+        return visit(ast.getExpression());
+//        if(ast.getExpression().){
+//            return new Environment.PlcObject(scope, ast.getType().getName());
+//        }else{
+//            throw new UnsupportedOperationException(); //TODO
+//        }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Binary ast) {
-        switch (ast.getOperator()) {
+        //throw new UnsupportedOperationException(); //TODO
+        //Evaluates arguments based on the specific binary operator,
+        // returning the appropriate result for the operation
+        // (hint: use requireType and Environment.create as needed)
+        //requireType(Boolean.class, visit(ast.getCondition()))
+        Object leftHand = visit(ast.getLeft()).getValue();
+        Object rightHand = visit(ast.getRight()).getValue();
+        switch (ast.getOperator()){
             case "AND":
-                if (requireType(Boolean.class, visit(ast.getLeft()))|| !requireType(Boolean.class, visit(ast.getLeft()))) {
-                    if (requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))) {
-                        if (ast.getLeft().equals(ast.getRight())) {
-                            return Environment.create(true);
-                        } else {
-                            return Environment.create(false);
+                Ast.Expr.Literal falseTemp = new Ast.Expr.Literal(false);
+                if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
+                    if(ast.getLeft().equals(falseTemp)){
+                        return Environment.create(false);
+                    }
+                    else {
+                        if(requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))){
+                            if(ast.getRight().equals(falseTemp)){
+                                return Environment.create(false) ;
+                            }
+                        }
+                        else{
+                            throw new RuntimeException("Invalid operands for AND operation");
                         }
                     }
-                    throw new RuntimeException("Left and Right must be same type");
-                }
-                throw new RuntimeException("must be a boolean");
-            case "OR":
-                if (requireType(Boolean.class, visit(ast.getLeft())) || requireType(Boolean.class, visit(ast.getLeft()))) {
                     return Environment.create(true);
-                } else {
+                }else{
+                    throw new RuntimeException("Invalid operands for AND operation");
+                }
+                //break;
+            case "OR":
+                Ast.Expr.Literal trueTemp = new Ast.Expr.Literal(true);
+                if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
+                    if(ast.getLeft().equals(trueTemp)){
+                        return Environment.create(true);
+                    }
+                    else {
+                        if(requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))){
+                            if(ast.getRight().equals(trueTemp)){
+                                return Environment.create(true) ;
+                            }
+                        }
+                        else{
+                            throw new RuntimeException("Invalid operands for OR operation");
+                        }
+                    }
+                    return Environment.create(true);
+                }
+            case "+":
+                if(leftHand.getClass() == BigInteger.class && rightHand.getClass() == BigInteger.class){
+                    BigInteger result = ((BigInteger) leftHand).add((BigInteger) rightHand);
+                    return Environment.create(result);
+                }
+                if(leftHand.getClass() == BigDecimal.class && rightHand.getClass() == BigDecimal.class){
+                    BigDecimal result = (((BigDecimal) leftHand).add((BigDecimal) rightHand));
+                    return Environment.create(result);
+                }
+                if(leftHand.getClass() == String.class || rightHand.getClass() == String.class){
+                    //concat them
+                    return Environment.create(leftHand.toString() + rightHand.toString());
+                }
+                throw new RuntimeException("Invalid operands for addition");
+            case "-":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        BigInteger result = ((BigInteger) leftHand).subtract((BigInteger) rightHand);
+                        return Environment.create(result);
+                    } else if (leftHand.getClass() == BigDecimal.class){
+                        BigDecimal result = ((BigDecimal) leftHand).subtract((BigDecimal) rightHand);
+                        return Environment.create(result);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for subtraction");
+            case "*":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        BigInteger result = ((BigInteger) leftHand).multiply((BigInteger) rightHand);
+                        return Environment.create(result);
+                    } else if (leftHand.getClass() == BigDecimal.class){
+                        BigDecimal result = ((BigDecimal) leftHand).multiply((BigDecimal) rightHand);
+                        return Environment.create(result);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for subtraction");
+            case "/":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        BigInteger result = ((BigInteger) leftHand).divide((BigInteger) rightHand);
+                        return Environment.create(result);
+                    } else if (leftHand.getClass() == BigDecimal.class){
+                        MathContext rounding = new MathContext(1, RoundingMode.HALF_EVEN);
+                        BigDecimal result = ((BigDecimal) leftHand).divide((BigDecimal) rightHand, rounding);
+                        return Environment.create(result);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for subtraction");
+            case "==":
+                if(leftHand.equals(rightHand)){
+                    return Environment.create(true);
+                }
+                else{
                     return Environment.create(false);
                 }
-            case "<":
-
-            case "<=":
-
-            case ">":
-
-            case ">=":
-
-            case "==":
-
             case "!=":
-
-            case "+":
-
-            case "-":
-
-            case "*":
-
-            case "/":
+                if(!leftHand.equals(rightHand)){
+                    return Environment.create(true);
+                }
+                else{
+                    return Environment.create(false);
+                }
 
             default:
-                return Environment.NIL;
-
+                throw new RuntimeException("Not a valid binary expression");
         }
     }
 
@@ -164,6 +271,11 @@ public class Interpreter implements Ast
     @Override
     public Environment.PlcObject visit(Ast.Expr.Function ast) {
         throw new UnsupportedOperationException(); //TODO
+        //Environment.Function func = new Environment.Function()
+//        if(ast.getReceiver().isPresent()){
+//            scope.defineFunction(ast.getName(), );
+//        }
+        //return Environment.PlcObject;
     }
 
     /**

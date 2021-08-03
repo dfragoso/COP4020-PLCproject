@@ -53,25 +53,36 @@ public final class Parser {
      */
     public Ast.Field parseField() throws ParseException {
         //field ::= 'LET' identifier ('=' expression)? ';' -- same as LET in statement
+        //field ::= 'LET' identifier ':' identifier ('=' expression)? ';'
+        String name;
+        String typeName = new String();
+        Optional<Ast.Expr> value = Optional.empty();
         if(match(Token.Type.IDENTIFIER)) {
-            String name = tokens.get(-1).getLiteral();
+            name = tokens.get(-1).getLiteral();
+
             //Only name, no other expression
+            if (match(":")){
+                if (match(Token.Type.IDENTIFIER)){
+                    typeName = tokens.get(-1).getLiteral();
+                }
+            }
+
             if(match(";")){
                 return new Ast.Field(name, Optional.empty());
             }
             //There is an expression in the declaration
             if(match("=")){
-                Ast.Expr expr = parseExpression();
+                value = Optional.of(parseExpression());
                 if(!match(";")){
                     throw new ParseException("Missing a semicolon at the end", tokens.index);
                 }
-                return new Ast.Field(name, Optional.of(expr));
             }
+            return new Ast.Field(name, typeName, value);
+
         }
         else{
             throw new ParseException("Invalid declaration syntax", tokens.index);
         }
-        throw new UnsupportedOperationException(); //TODO
     }
 
     /**
@@ -80,26 +91,46 @@ public final class Parser {
      */
     public Ast.Method parseMethod() throws ParseException {
         //method ::= 'DEF' identifier '(' (identifier (',' identifier)*)? ')' 'DO' statement* 'END'
+        //method ::= 'DEF' identifier '(' (identifier ':' identifier (',' identifier ':' identifier)* )? ')' (':' identifier)? 'DO'
         String name = new String();
         List<String> parameters = new ArrayList<>();
+        List<String> parameterTypeNames = new ArrayList<>();
         List<Ast.Stmt> statements = new ArrayList<>();
+        Optional<String> returnTypeName = Optional.empty();
         if(match(Token.Type.IDENTIFIER)){
             name = tokens.get(-1).getLiteral();
         }
         if(match("(")){
             if(match(Token.Type.IDENTIFIER)){
-                 String param = tokens.get(-1).getLiteral();
-                 parameters.add(param);
+                String param = tokens.get(-1).getLiteral();
+                parameters.add(param);
+                if(match(":")){
+                    if(match(Token.Type.IDENTIFIER)){
+                        String paramType = tokens.get(0).getLiteral();
+                        parameterTypeNames.add(paramType);
+                    }
+                }
             }
             if(match(",")){
                 while(match(Token.Type.IDENTIFIER)){
                     String param = tokens.get(-1).getLiteral();
                     parameters.add(param);
+                    if(match(":")){
+                        if(match(Token.Type.IDENTIFIER)){
+                            String paramType = tokens.get(0).getLiteral();
+                            parameterTypeNames.add(paramType);
+                        }
+                    }
                 }
             }
         }
         if(!match(")")){
             throw new ParseException("Missing closing parenthesis", tokens.index);
+        }
+        if(match(":")){
+            if(match(Token.Type.IDENTIFIER)){
+                returnTypeName = Optional.of(tokens.get(-1).getLiteral());
+            }
         }
         if(!match("DO")){
             throw new ParseException("Missing DO keyword", tokens.index);
@@ -114,7 +145,7 @@ public final class Parser {
         if(!match("END")){
             throw new ParseException("Missing END keyword", tokens.index);
         }
-        return new Ast.Method(name, parameters, statements);
+        return new Ast.Method(name, parameters, parameterTypeNames, returnTypeName, statements);
     }
 
     /**
@@ -165,25 +196,28 @@ public final class Parser {
      */
     public Ast.Stmt.Declaration parseDeclarationStatement() throws ParseException {
         //'LET' identifier ('=' expression)? ';'
-        if(match(Token.Type.IDENTIFIER)) {
-            String name = tokens.get(-1).getLiteral();
-            //Only name, no other expression
-            if(match(";")){
-                return new Ast.Stmt.Declaration(name, Optional.empty());
-            }
-            //There is an expression in the declaration
-            if(match("=")){
-                Ast.Expr expr = parseExpression();
-                if(!match(";")){
-                    throw new ParseException("Missing a semicolon at the end", tokens.index);
-                }
-                return new Ast.Stmt.Declaration(name, Optional.of(expr));
-            }
-        }
-        else{
+        //New:
+        //'LET' identifier (':' identifier)? ('=' expression)? ';'
+        //LET already matched in statement method
+        Optional<String> typeName = Optional.empty();
+        if(!match(Token.Type.IDENTIFIER)) {
             throw new ParseException("Invalid declaration syntax", tokens.index);
         }
-        throw new UnsupportedOperationException(); //TODO
+        String name = tokens.get(-1).getLiteral();
+        if(match(":")){
+            if(match(Token.Type.IDENTIFIER)){
+                typeName = Optional.of(tokens.get(-1).getLiteral());
+            }
+        }
+        Optional<Ast.Expr> value = Optional.empty();
+        //There is an expression in the declaration
+        if(match("=")){
+            value = Optional.of(parseExpression());
+        }
+        if(!match(";")){
+            throw new ParseException("Missing a semicolon at the end", tokens.index);
+        }
+        return new Ast.Stmt.Declaration(name, typeName, value);
     }
 
     /**
@@ -379,17 +413,17 @@ public final class Parser {
         // secondary_expression ::= primary_expression (  '.' identifier (   '(' (expression (',' expression)*)? ')'  )?  )*
         Ast.Expr expr = parsePrimaryExpression();
         while(match(".")){
-           Ast.Expr primExpr = parsePrimaryExpression();
-           if(primExpr instanceof Ast.Expr.Access){
-               primExpr = new Ast.Expr.Access(Optional.of(expr), ((Ast.Expr.Access) primExpr).getName());
-           }
-           else if(primExpr instanceof Ast.Expr.Function){
-               primExpr = new Ast.Expr.Function(Optional.of(expr), ((Ast.Expr.Function) primExpr).getName(), ((Ast.Expr.Function) primExpr).getArguments());
-           }
-           else{
-               throw new ParseException("Invalid expression", tokens.index);
-           }
-           expr = primExpr;
+            Ast.Expr primExpr = parsePrimaryExpression();
+            if(primExpr instanceof Ast.Expr.Access){
+                primExpr = new Ast.Expr.Access(Optional.of(expr), ((Ast.Expr.Access) primExpr).getName());
+            }
+            else if(primExpr instanceof Ast.Expr.Function){
+                primExpr = new Ast.Expr.Function(Optional.of(expr), ((Ast.Expr.Function) primExpr).getName(), ((Ast.Expr.Function) primExpr).getArguments());
+            }
+            else{
+                throw new ParseException("Invalid expression", tokens.index);
+            }
+            expr = primExpr;
         }
         return expr;
     }
@@ -575,12 +609,10 @@ public final class Parser {
 
 }
 /*
-
 source ::= field* method*
 field ::= 'LET' identifier ('=' expression)? ';'
 method ::= 'DEF' identifier '(' (identifier (',' identifier)*)? ')' 'DO' statement* 'END'
 //Literals are enclosed in single quotes ' ' to generate a railroad diagram
-
 //To do in part2b
 statement ::=
     'LET' identifier ('=' expression)? ';' |
@@ -589,25 +621,20 @@ statement ::=
     'WHILE' expression 'DO' statement* 'END' |
     'RETURN' expression ';' |
     expression ('=' expression)? ';'
-
 //For part2a
 expression ::= logical_expression
-
 logical_expression ::= comparison_expression (('AND' | 'OR') comparison_expression)*
                             // Literals AND and OR are lexed as Token.Type.IDENTIFIER \\
 comparison_expression ::= additive_expression (('<' | '<=' | '>' | '>=' | '==' | '!=') additive_expression)*
                                                     // Lexed as OPERATOR \\
 additive_expression ::= multiplicative_expression (('+' | '-') multiplicative_expression)*
 multiplicative_expression ::= secondary_expression (('*' | '/') secondary_expression)*
-
 secondary_expression ::= primary_expression ('.' identifier ('(' (expression (',' expression)*)? ')')?)*
-
 primary_expression ::=
     'NIL' | 'TRUE' | 'FALSE' |
     integer | decimal | character | string |
     '(' expression ')' |
     identifier ('(' (expression (',' expression)*)? ')')?
-
 //Grammar for the lexer
 identifier ::= [A-Za-z_] [A-Za-z0-9_]*
 number ::= [+-]? [0-9]+ ('.' [0-9]+)?
@@ -615,7 +642,5 @@ character ::= ['] ([^'\\] | escape) [']
 string ::= '"' ([^"\n\r\\] | escape)* '"'
 escape ::= '\' [bnrt'"\]
 operator ::= [<>!=] '='? | 'any character'
-
 whitespace ::= [ \b\n\r\t]
-
 * */
