@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.lang.Integer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -230,7 +231,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                         return Environment.create(result);
                     }
                 }
-                throw new RuntimeException("Invalid operands for subtraction");
+                throw new RuntimeException("Invalid operands for multiplication");
             case "/":
                 if(leftHand.getClass() == rightHand.getClass()) {
                     if (leftHand.getClass() == BigInteger.class) {
@@ -242,7 +243,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                         return Environment.create(result);
                     }
                 }
-                throw new RuntimeException("Invalid operands for subtraction");
+                throw new RuntimeException("Invalid operands for division");
             case "==":
                 if(leftHand.equals(rightHand)){
                     return Environment.create(true);
@@ -257,6 +258,53 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 else{
                     return Environment.create(false);
                 }
+            case "<":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        int result = ((BigInteger) leftHand).compareTo((BigInteger) rightHand);
+                        if (result < 0)
+                            return Environment.create(true);
+                        else
+                            return Environment.create(false);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for comparison");
+
+            case ">":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        int result = ((BigInteger) leftHand).compareTo((BigInteger) rightHand);
+                        if (result > 0)
+                            return Environment.create(true);
+                        else
+                            return Environment.create(false);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for comparison");
+
+            case "<=":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        int result = ((BigInteger) leftHand).compareTo((BigInteger) rightHand);
+                        if (result < 1)
+                            return Environment.create(true);
+                        else
+                            return Environment.create(false);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for comparison");
+
+            case ">=":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        int result = ((BigInteger) leftHand).compareTo((BigInteger) rightHand);
+                        if (result > -1)
+                            return Environment.create(true);
+                        else
+                            return Environment.create(false);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for comparison");
 
             default:
                 throw new RuntimeException("Not a valid binary expression");
