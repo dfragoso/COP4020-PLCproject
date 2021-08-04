@@ -68,7 +68,11 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Expression ast) {
         //throw new UnsupportedOperationException(); //TODO
-
+        if(!(ast.getExpression() instanceof Ast.Expr.Function)){
+            throw new RuntimeException("Expression must be a function");
+        }else{
+            visit(ast.getExpression());
+        }
         return Environment.NIL;
     }
 
@@ -94,6 +98,9 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     public Environment.PlcObject visit(Ast.Stmt.If ast) {
         //Creates a new scope since it is a stmt block
         throw new UnsupportedOperationException(); //TODO
+        /*if(requireType(Boolean.class, visit(ast))){
+
+        }*/
     }
 
     @Override
@@ -313,7 +320,12 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Access ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        if(ast.getReceiver().isPresent()){
+            return Environment.create(ast.getReceiver().get());
+        }else {
+            return Environment.create(ast.getVariable().getValue());
+        }
     }
 
     @Override
