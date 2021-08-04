@@ -1,7 +1,5 @@
 package plc.project;
 
-import com.sun.corba.se.impl.ior.OldJIDLObjectKeyTemplate;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
@@ -45,6 +43,9 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     public Environment.PlcObject visit(Ast.Source ast) {
         //Source does not create a new scope , because it will use the base scope already created
         // at the instantiation of the interpreter
+        //visit all the fields with .getfield
+        //visit all the methods with .getmethod (no execution)
+        //scope.lookupfunction("main").invoke;
         throw new UnsupportedOperationException(); //TODO
     }
 
@@ -67,12 +68,8 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Expression ast) {
-        //throw new UnsupportedOperationException(); //TODO
-        if(!(ast.getExpression() instanceof Ast.Expr.Function)){
-            throw new RuntimeException("Expression must be a function");
-        }else{
-            visit(ast.getExpression());
-        }
+        //throw new UnsupportedOperationException();
+        visit(ast.getExpression());
         return Environment.NIL;
     }
 
@@ -92,15 +89,13 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Assignment ast) {
         throw new UnsupportedOperationException(); //TODO
+        //if receiever is present, visit reciever and set field with the reciever object
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.If ast) {
         //Creates a new scope since it is a stmt block
         throw new UnsupportedOperationException(); //TODO
-        /*if(requireType(Boolean.class, visit(ast))){
-
-        }*/
     }
 
     @Override
@@ -128,7 +123,8 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Return ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        throw new Return(visit(ast.getValue()));
     }
 
     @Override
@@ -147,11 +143,6 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         //Evaluates the contained expression, returning it's value.
         // (1)->1 , (1 + 10)->11
         return visit(ast.getExpression());
-//        if(ast.getExpression().){
-//            return new Environment.PlcObject(scope, ast.getType().getName());
-//        }else{
-//            throw new UnsupportedOperationException(); //TODO
-//        }
     }
 
     @Override
@@ -187,12 +178,12 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 //break;
             case "OR":
                 Ast.Expr.Literal trueTemp = new Ast.Expr.Literal(true);
-                if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
+                if(requireType(Boolean.class, visit(ast.getLeft()))){
                     if(ast.getLeft().equals(trueTemp)){
                         return Environment.create(true);
                     }
                     else {
-                        if(requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))){
+                        if(requireType(Boolean.class, visit(ast.getRight()))){
                             if(ast.getRight().equals(trueTemp)){
                                 return Environment.create(true) ;
                             }
@@ -201,7 +192,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                             throw new RuntimeException("Invalid operands for OR operation");
                         }
                     }
-                    return Environment.create(true);
+                    return Environment.create(false);
                 }
             case "+":
                 if(leftHand.getClass() == BigInteger.class && rightHand.getClass() == BigInteger.class){
@@ -322,15 +313,17 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     public Environment.PlcObject visit(Ast.Expr.Access ast) {
         //throw new UnsupportedOperationException(); //TODO
         if(ast.getReceiver().isPresent()){
-            return Environment.create(ast.getReceiver().get());
-        }else {
-            return Environment.create(ast.getVariable().getValue());
+            return visit(ast.getReceiver().get()).getField(ast.getName()).getValue();
+        }
+        else {
+            return scope.lookupVariable(ast.getName()).getValue();
         }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Function ast) {
         throw new UnsupportedOperationException(); //TODO
+
         //Environment.Function func = new Environment.Function()
 //        if(ast.getReceiver().isPresent()){
 //            scope.defineFunction(ast.getName(), );
@@ -361,5 +354,4 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         }
 
     }
-
 }

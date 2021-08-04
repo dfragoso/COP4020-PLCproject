@@ -2,8 +2,10 @@ package plc.project;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -31,22 +33,66 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Source ast) {
+        for (int i = 0; i < ast.getFields().size(); i++) {
+            visit(ast.getFields().get(i));
+        }
+        boolean mainFound = false;
+        for (int i = 0; i < ast.getMethods().size(); i++) {
+            visit(ast.getMethods().get(i));
+            if(ast.getMethods().get(i).getName() == "main" && ast.getMethods().get(i).getParameters().size() == 0){
+                mainFound = true;
+                if(ast.getMethods().get(i).getReturnTypeName().get() != "Integer"){
+                    throw new RuntimeException("Invalid return type for main");
+                }
+            }
+        }
+        if(!mainFound){
+            throw new RuntimeException("Missing main");
+        }
 
-        throw new UnsupportedOperationException();  // TODO
-        //LET num: Integer = 1;
-        // DEF main(): Integer DO
-        //     print(num + 1.0);
-        // END
+        return null;
     }
 
     @Override
     public Void visit(Ast.Field ast) {
-        throw new UnsupportedOperationException();  // TODO
+        if(ast.getValue().isPresent()){
+            visit(ast.getValue().get());
+            ast.setVariable(scope.defineVariable(ast.getName(), ast.getName(), Environment.getType(ast.getTypeName()), Environment.NIL));
+            requireAssignable(ast.getVariable().getType(), ast.getValue().get().getType());
+        }else {
+            ast.setVariable(scope.defineVariable(ast.getName(), ast.getName(), Environment.getType(ast.getTypeName()), Environment.NIL));
+        }
+
+        return null;
     }
 
     @Override
     public Void visit(Ast.Method ast) {
-        throw new UnsupportedOperationException();  // TODO
+        //The function's name and jvmName are both the name of the method
+        String name = ast.getName();
+
+        //The function's parameter types and return type are retrieved from the environment
+        // using the corresponding names in the method.
+        List<Environment.Type> parameterTypeNames = new ArrayList<>();
+        for (int i = 0; i < ast.getParameterTypeNames().size(); i++) {
+            parameterTypeNames.add(Environment.getType(ast.getParameterTypeNames().get(i)));
+        }
+        Environment.Type returnTypeName;
+        //If the return type is not provided and thus, not present in the AST, the return type will be Nil
+        if(!ast.getReturnTypeName().isPresent()){
+            returnTypeName = Environment.Type.NIL;
+        }else{
+            returnTypeName = Environment.getType(ast.getReturnTypeName().get());
+        }
+        ast.setFunction(scope.defineFunction(name, name, parameterTypeNames, returnTypeName, args->Environment.NIL));
+
+        scope = new Scope(scope);
+        for (int i = 0; i < ast.getStatements().size(); i++) {
+            this.visit(ast.getStatements().get(i));
+            scope = scope.getParent();
+        }
+
+        return null;
     }
 
     @Override
@@ -105,11 +151,16 @@ public final class Analyzer implements Ast.Visitor<Void> {
         if(ast.getThenStatements().isEmpty()){
             throw new RuntimeException("Missing then statement");
         }
+        scope = new Scope(scope);
         for (int i = 0; i < ast.getElseStatements().size(); i++) {
-            visit(ast.getElseStatements().get(i));
+            this.visit(ast.getElseStatements().get(i));
+            scope.getParent();
         }
+        scope = new Scope(scope);
         for (int i = 0; i < ast.getThenStatements().size(); i++) {
-            visit(ast.getThenStatements().get(i));
+            Ast.Stmt temp = ast.getThenStatements().get(i);
+            this.visit(ast.getThenStatements().get(i));
+            scope = scope.getParent();
         }
 
         return null;
@@ -117,18 +168,42 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Stmt.For ast) {
-        throw new UnsupportedOperationException();  // TODO
+        visit(ast.getValue());
+        if(ast.getValue().getType() != Environment.Type.INTEGER_ITERABLE){
+            throw new RuntimeException("Value must be of type IntegerIterable");
+        }
+        if(ast.getStatements().isEmpty()){
+            throw new RuntimeException("Missing statements");
+        }
+        scope = new Scope(scope);
+        for (int i = 0; i < ast.getStatements().size(); i++) {
+            this.visit(ast.getStatements().get(i));
+            scope.defineVariable(ast.getName(), ast.getName(), Environment.Type.INTEGER, Environment.NIL);
+            scope = scope.getParent();
+        }
+
+        return null;
     }
 
     @Override
     public Void visit(Ast.Stmt.While ast) {
-        throw new UnsupportedOperationException();  // TODO
+        visit(ast.getCondition());
+        if(ast.getCondition().getType() != Environment.Type.BOOLEAN){
+            throw new RuntimeException("Condition must be a boolean");
+        }
+        scope = new Scope(scope);
+        for (int i = 0; i < ast.getStatements().size(); i++) {
+            this.visit(ast.getStatements().get(i));
+            scope.getParent();
+        }
+
+        return null;
     }
 
     @Override
     public Void visit(Ast.Stmt.Return ast) {
-//        visit(ast.getValue());
-//        if(ast.getValue() != scope.getParent().)
+        visit(ast.getValue());
+
         return null;
     }
 
@@ -265,6 +340,7 @@ public final class Analyzer implements Ast.Visitor<Void> {
         }else {
             ast.setFunction(scope.lookupFunction(ast.getName(), ast.getArguments().size()));
             for (int i = 0; i < ast.getArguments().size(); i++) {
+                visit(ast.getArguments().get(i));
                 requireAssignable(ast.getFunction().getParameterTypes().get(i), ast.getArguments().get(i).getType());
             }
         }
