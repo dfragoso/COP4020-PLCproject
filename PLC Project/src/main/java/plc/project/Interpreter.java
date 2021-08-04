@@ -4,7 +4,9 @@ import com.sun.corba.se.impl.ior.OldJIDLObjectKeyTemplate;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.math.RoundingMode;
+import java.lang.Integer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -48,7 +50,6 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Field ast) {
-        //throw new UnsupportedOperationException(); //TODO
         if(ast.getValue().isPresent()){
             //scope has been already been defined
             scope.defineVariable( ast.getName(), visit(ast.getValue().get()) );
@@ -106,11 +107,11 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         //Creates a new scope since it is a stmt block
         while (requireType(Boolean.class, visit(ast.getCondition()))){
             try {
-               scope = new Scope(scope);
-               for(Ast.Stmt stmt : ast.getStatements()){
-                   visit( stmt );
-               }
-               //ast.getStatement().forEach(this::visit);
+                scope = new Scope(scope);
+                for(Ast.Stmt stmt : ast.getStatements()){
+                    visit( stmt );
+                }
+                //ast.getStatement().forEach(this::visit);
             }finally {
                 scope = scope.getParent();
             }
@@ -155,10 +156,10 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         //requireType(Boolean.class, visit(ast.getCondition()))
         Object leftHand = visit(ast.getLeft()).getValue();
         Object rightHand = visit(ast.getRight()).getValue();
-       switch (ast.getOperator()){
-           case "AND":
-               Ast.Expr.Literal falseTemp = new Ast.Expr.Literal(false);
-               if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
+        switch (ast.getOperator()){
+            case "AND":
+                Ast.Expr.Literal falseTemp = new Ast.Expr.Literal(false);
+                if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
                     if(ast.getLeft().equals(falseTemp)){
                         return Environment.create(false);
                     }
@@ -173,94 +174,141 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                         }
                     }
                     return Environment.create(true);
-               }else{
-                   throw new RuntimeException("Invalid operands for AND operation");
-               }
-               //break;
-           case "OR":
-               Ast.Expr.Literal trueTemp = new Ast.Expr.Literal(true);
-               if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
-                   if(ast.getLeft().equals(trueTemp)){
-                       return Environment.create(true);
-                   }
-                   else {
-                       if(requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))){
-                           if(ast.getRight().equals(trueTemp)){
-                               return Environment.create(true) ;
-                           }
-                       }
-                       else{
-                           throw new RuntimeException("Invalid operands for OR operation");
-                       }
-                   }
-                   return Environment.create(true);
-               }
-           case "+":
-               if(leftHand.getClass() == BigInteger.class && rightHand.getClass() == BigInteger.class){
-                   BigInteger result = ((BigInteger) leftHand).add((BigInteger) rightHand);
-                   return Environment.create(result);
-               }
-               if(leftHand.getClass() == BigDecimal.class && rightHand.getClass() == BigDecimal.class){
+                }else{
+                    throw new RuntimeException("Invalid operands for AND operation");
+                }
+                //break;
+            case "OR":
+                Ast.Expr.Literal trueTemp = new Ast.Expr.Literal(true);
+                if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
+                    if(ast.getLeft().equals(trueTemp)){
+                        return Environment.create(true);
+                    }
+                    else {
+                        if(requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))){
+                            if(ast.getRight().equals(trueTemp)){
+                                return Environment.create(true) ;
+                            }
+                        }
+                        else{
+                            throw new RuntimeException("Invalid operands for OR operation");
+                        }
+                    }
+                    return Environment.create(true);
+                }
+            case "+":
+                if(leftHand.getClass() == BigInteger.class && rightHand.getClass() == BigInteger.class){
+                    BigInteger result = ((BigInteger) leftHand).add((BigInteger) rightHand);
+                    return Environment.create(result);
+                }
+                if(leftHand.getClass() == BigDecimal.class && rightHand.getClass() == BigDecimal.class){
                     BigDecimal result = (((BigDecimal) leftHand).add((BigDecimal) rightHand));
-                   return Environment.create(result);
-               }
-               if(leftHand.getClass() == String.class || rightHand.getClass() == String.class){
-                   //concat them
-                   return Environment.create(leftHand.toString() + rightHand.toString());
-               }
-               throw new RuntimeException("Invalid operands for addition");
-           case "-":
-               if(leftHand.getClass() == rightHand.getClass()) {
-                   if (leftHand.getClass() == BigInteger.class) {
-                       BigInteger result = ((BigInteger) leftHand).subtract((BigInteger) rightHand);
-                       return Environment.create(result);
-                   } else if (leftHand.getClass() == BigDecimal.class){
-                       BigDecimal result = ((BigDecimal) leftHand).subtract((BigDecimal) rightHand);
-                       return Environment.create(result);
-                   }
-               }
-               throw new RuntimeException("Invalid operands for subtraction");
-           case "*":
-               if(leftHand.getClass() == rightHand.getClass()) {
-                   if (leftHand.getClass() == BigInteger.class) {
-                       BigInteger result = ((BigInteger) leftHand).multiply((BigInteger) rightHand);
-                       return Environment.create(result);
-                   } else if (leftHand.getClass() == BigDecimal.class){
-                       BigDecimal result = ((BigDecimal) leftHand).multiply((BigDecimal) rightHand);
-                       return Environment.create(result);
-                   }
-               }
-               throw new RuntimeException("Invalid operands for subtraction");
-           case "/":
-               if(leftHand.getClass() == rightHand.getClass()) {
-                   if (leftHand.getClass() == BigInteger.class) {
-                       BigInteger result = ((BigInteger) leftHand).divide((BigInteger) rightHand);
-                       return Environment.create(result);
-                   } else if (leftHand.getClass() == BigDecimal.class){
-                       BigDecimal result = ((BigDecimal) leftHand).divide((BigDecimal) rightHand);
-                       result = result.setScale(0, RoundingMode.HALF_EVEN);
-                       return Environment.create(result);
-                   }
-               }
-               throw new RuntimeException("Invalid operands for subtraction");
-           case "==":
-               if(leftHand.equals(rightHand)){
-                   return Environment.create(true);
-               }
-               else{
-                   return Environment.create(false);
-               }
-           case "!=":
-               if(!leftHand.equals(rightHand)){
-                   return Environment.create(true);
-               }
-               else{
-                   return Environment.create(false);
-               }
+                    return Environment.create(result);
+                }
+                if(leftHand.getClass() == String.class || rightHand.getClass() == String.class){
+                    //concat them
+                    return Environment.create(leftHand.toString() + rightHand.toString());
+                }
+                throw new RuntimeException("Invalid operands for addition");
+            case "-":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        BigInteger result = ((BigInteger) leftHand).subtract((BigInteger) rightHand);
+                        return Environment.create(result);
+                    } else if (leftHand.getClass() == BigDecimal.class){
+                        BigDecimal result = ((BigDecimal) leftHand).subtract((BigDecimal) rightHand);
+                        return Environment.create(result);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for subtraction");
+            case "*":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        BigInteger result = ((BigInteger) leftHand).multiply((BigInteger) rightHand);
+                        return Environment.create(result);
+                    } else if (leftHand.getClass() == BigDecimal.class){
+                        BigDecimal result = ((BigDecimal) leftHand).multiply((BigDecimal) rightHand);
+                        return Environment.create(result);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for multiplication");
+            case "/":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        BigInteger result = ((BigInteger) leftHand).divide((BigInteger) rightHand);
+                        return Environment.create(result);
+                    } else if (leftHand.getClass() == BigDecimal.class){
+                        MathContext rounding = new MathContext(1, RoundingMode.HALF_EVEN);
+                        BigDecimal result = ((BigDecimal) leftHand).divide((BigDecimal) rightHand, rounding);
+                        return Environment.create(result);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for division");
+            case "==":
+                if(leftHand.equals(rightHand)){
+                    return Environment.create(true);
+                }
+                else{
+                    return Environment.create(false);
+                }
+            case "!=":
+                if(!leftHand.equals(rightHand)){
+                    return Environment.create(true);
+                }
+                else{
+                    return Environment.create(false);
+                }
+            case "<":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        int result = ((BigInteger) leftHand).compareTo((BigInteger) rightHand);
+                        if (result < 0)
+                            return Environment.create(true);
+                        else
+                            return Environment.create(false);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for comparison");
 
-           default:
-               throw new RuntimeException("Not a valid binary expression");
-       }
+            case ">":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        int result = ((BigInteger) leftHand).compareTo((BigInteger) rightHand);
+                        if (result > 0)
+                            return Environment.create(true);
+                        else
+                            return Environment.create(false);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for comparison");
+
+            case "<=":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        int result = ((BigInteger) leftHand).compareTo((BigInteger) rightHand);
+                        if (result < 1)
+                            return Environment.create(true);
+                        else
+                            return Environment.create(false);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for comparison");
+
+            case ">=":
+                if(leftHand.getClass() == rightHand.getClass()) {
+                    if (leftHand.getClass() == BigInteger.class) {
+                        int result = ((BigInteger) leftHand).compareTo((BigInteger) rightHand);
+                        if (result > -1)
+                            return Environment.create(true);
+                        else
+                            return Environment.create(false);
+                    }
+                }
+                throw new RuntimeException("Invalid operands for comparison");
+
+            default:
+                throw new RuntimeException("Not a valid binary expression");
+        }
     }
 
     @Override
@@ -301,5 +349,4 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         }
 
     }
-
 }
