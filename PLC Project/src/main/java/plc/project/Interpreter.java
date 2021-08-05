@@ -1,5 +1,7 @@
 package plc.project;
 
+import javafx.print.PageLayout;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
@@ -43,10 +45,13 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     public Environment.PlcObject visit(Ast.Source ast) {
         //Source does not create a new scope , because it will use the base scope already created
         // at the instantiation of the interpreter
-        //visit all the fields with .getfield
-        //visit all the methods with .getmethod (no execution)
-        //scope.lookupfunction("main").invoke;
-        throw new UnsupportedOperationException(); //TODO
+        for (int i = 0; i < ast.getFields().size(); i++) {
+            visit(ast.getFields().get(i));
+        }
+        for (int i = 0; i < ast.getMethods().size(); i++) {
+            visit(ast.getMethods().get(i));
+        }
+        return scope.lookupFunction("main", 0).invoke(new ArrayList<>());
     }
 
     @Override
@@ -68,7 +73,6 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Expression ast) {
-        //throw new UnsupportedOperationException();
         visit(ast.getExpression());
         return Environment.NIL;
     }
@@ -123,13 +127,11 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Return ast) {
-        //throw new UnsupportedOperationException(); //TODO
         throw new Return(visit(ast.getValue()));
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Literal ast) {
-        //throw new UnsupportedOperationException(); //TODO
         if(ast.getLiteral() != null){
             return Environment.create(ast.getLiteral());
         }else{
@@ -139,7 +141,6 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Group ast) {
-        //throw new UnsupportedOperationException(); //TODO
         //Evaluates the contained expression, returning it's value.
         // (1)->1 , (1 + 10)->11
         return visit(ast.getExpression());
@@ -147,7 +148,6 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Binary ast) {
-        //throw new UnsupportedOperationException(); //TODO
         //Evaluates arguments based on the specific binary operator,
         // returning the appropriate result for the operation
         // (hint: use requireType and Environment.create as needed)
@@ -311,7 +311,6 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Access ast) {
-        //throw new UnsupportedOperationException(); //TODO
         if(ast.getReceiver().isPresent()){
             return visit(ast.getReceiver().get()).getField(ast.getName()).getValue();
         }
@@ -322,14 +321,21 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Function ast) {
-        throw new UnsupportedOperationException(); //TODO
 
-        //Environment.Function func = new Environment.Function()
-//        if(ast.getReceiver().isPresent()){
-//            scope.defineFunction(ast.getName(), );
-//        }
-        //return Environment.PlcObject;
+        //arraylist (type PLCObject) of ast arguments
+        ArrayList<Environment.PlcObject> argumentArray  = new ArrayList<Environment.PlcObject>();
+        for (int i = 0; i < ast.getArguments().size(); i++) {
+            argumentArray.add(visit(ast.getArguments().get(i)));
+        }
+
+        if(ast.getReceiver().isPresent()){
+            return visit(ast.getReceiver().get()).callMethod(ast.getName(), argumentArray);
+        }
+        else {
+            return scope.lookupFunction(ast.getName(), ast.getArguments().size()).invoke(argumentArray);
+        }
     }
+        //return Environment.PlcObject;
 
     /**
      * Helper function to ensure an object is of the appropriate type.
