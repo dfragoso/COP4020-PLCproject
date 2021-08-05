@@ -27,6 +27,13 @@ public final class Parser {
         this.tokens = new TokenStream(tokens);
     }
 
+    private ParseException ParseError(String errorMessage){
+        if(tokens.has(0)){
+            return new ParseException("Missing the END", tokens.get(0).getIndex());
+        }else {
+            return new ParseException("Missing the END", tokens.get(-1).getIndex() + tokens.get(-1).getLiteral().length());
+        }
+    }
     /**
      * Parses the {@code source} rule.
      */
@@ -36,13 +43,16 @@ public final class Parser {
         List<Ast.Field> fields = new ArrayList<>();
         List<Ast.Method> methods = new ArrayList<>();
 
-        while(match("LET")){
+        while(peek("LET")){
             Ast.Field field = parseField();
             fields.add(field);
         }
-        while(match("DEF")){
+        while(peek("DEF")){
             Ast.Method method = parseMethod();
             methods.add(method);
+        }
+        if(tokens.has(0)){
+           throw ParseError("Invalid source");
         }
         return new Ast.Source(fields, methods);
     }
@@ -56,6 +66,7 @@ public final class Parser {
         //field ::= 'LET' identifier ':' identifier ('=' expression)? ';'
         String name;
         String typeName = new String();
+        match("LET");
         Optional<Ast.Expr> value = Optional.empty();
         if(match(Token.Type.IDENTIFIER)) {
             name = tokens.get(-1).getLiteral();
@@ -64,24 +75,28 @@ public final class Parser {
             if (match(":")){
                 if (match(Token.Type.IDENTIFIER)){
                     typeName = tokens.get(-1).getLiteral();
+                }else{
+                    throw ParseError("Missing type");
                 }
+            }else{
+                throw ParseError("Missing type");
             }
 
             if(match(";")){
-                return new Ast.Field(name, Optional.empty());
+                return new Ast.Field(name, typeName, value);
             }
             //There is an expression in the declaration
             if(match("=")){
                 value = Optional.of(parseExpression());
                 if(!match(";")){
-                    throw new ParseException("Missing a semicolon at the end", tokens.index);
+                    throw ParseError("Missing a semicolon at the end");
                 }
             }
             return new Ast.Field(name, typeName, value);
 
         }
         else{
-            throw new ParseException("Invalid declaration syntax", tokens.index);
+            throw ParseError("Invalix field syntax");
         }
     }
 
@@ -93,6 +108,7 @@ public final class Parser {
         //method ::= 'DEF' identifier '(' (identifier (',' identifier)*)? ')' 'DO' statement* 'END'
         //method ::= 'DEF' identifier '(' (identifier ':' identifier (',' identifier ':' identifier)* )? ')' (':' identifier)? 'DO'
         String name = new String();
+        match("DEF");
         List<String> parameters = new ArrayList<>();
         List<String> parameterTypeNames = new ArrayList<>();
         List<Ast.Stmt> statements = new ArrayList<>();
@@ -125,7 +141,7 @@ public final class Parser {
             }
         }
         if(!match(")")){
-            throw new ParseException("Missing closing parenthesis", tokens.index);
+            throw ParseError("Missing closing parenthesis");
         }
         if(match(":")){
             if(match(Token.Type.IDENTIFIER)){
@@ -133,7 +149,7 @@ public final class Parser {
             }
         }
         if(!match("DO")){
-            throw new ParseException("Missing DO keyword", tokens.index);
+            throw ParseError("Missing DO keyword");
         }
         while (true){
             if(peek("END")){
@@ -143,7 +159,7 @@ public final class Parser {
             statements.add(stmt);
         }
         if(!match("END")){
-            throw new ParseException("Missing END keyword", tokens.index);
+            throw ParseError("Missing END keyword");
         }
         return new Ast.Method(name, parameters, parameterTypeNames, returnTypeName, statements);
     }
@@ -183,7 +199,7 @@ public final class Parser {
                 stmt = new Ast.Stmt.Assignment(expr, parseExpression());
             }
             if(!match(";")){
-                throw new ParseException("Missing semicolon at the end of expression", tokens.index);
+                throw ParseError("Missing semicolon at the end of expression");
             }
             return stmt;
         }
@@ -201,7 +217,7 @@ public final class Parser {
         //LET already matched in statement method
         Optional<String> typeName = Optional.empty();
         if(!match(Token.Type.IDENTIFIER)) {
-            throw new ParseException("Invalid declaration syntax", tokens.index);
+            throw ParseError("Invalid declaration syntax");
         }
         String name = tokens.get(-1).getLiteral();
         if(match(":")){
@@ -215,7 +231,7 @@ public final class Parser {
             value = Optional.of(parseExpression());
         }
         if(!match(";")){
-            throw new ParseException("Missing a semicolon at the end", tokens.index);
+            throw ParseError("Missing a semicolon at the end");
         }
         return new Ast.Stmt.Declaration(name, typeName, value);
     }
@@ -229,7 +245,7 @@ public final class Parser {
         //'IF' expression 'DO' statement* ('ELSE' statement*)? 'END'
         Ast.Expr expr = parseExpression();
         if(!match("DO")){
-            throw new ParseException("Invalid IF syntax, missing the DO", tokens.index);
+            throw ParseError("Invalid IF syntax, missing the DO");
         }
         List<Ast.Stmt> thenStatements = new ArrayList<>();
         List<Ast.Stmt> elseStatements = new ArrayList<>();
@@ -250,7 +266,7 @@ public final class Parser {
             }
         }
         if(!match("END")){
-            throw new ParseException("Invalid IF syntax, missing the END", tokens.index);
+            throw ParseError("Invalid IF syntax, missing the END");
         }
         return new Ast.Stmt.If(expr, thenStatements, elseStatements);
     }
@@ -263,15 +279,15 @@ public final class Parser {
     public Ast.Stmt.For parseForStatement() throws ParseException {
         //'FOR' identifier 'IN' expression 'DO' statement* 'END'
         if(!match(Token.Type.IDENTIFIER)) {
-            throw new ParseException("Invalid FOR statement syntax", tokens.index);
+            throw ParseError("Invalid FOR statement syntax");
         }
         String name = tokens.get(-1).getLiteral();
         if(!match("IN")){
-            throw new ParseException("Invalid FOR statement syntax, missing IN", tokens.index);
+            throw ParseError("Invalid FOR statement syntax, missing IN");
         }
         Ast.Expr expr = parseExpression();
         if(!match("DO")){
-            throw new ParseException("Invalid FOR statement syntax, missing DO", tokens.index);
+            throw ParseError("Invalid FOR statement syntax, missing DO");
         }
         List<Ast.Stmt> stmtList = new ArrayList<>();
         while(true){
@@ -285,7 +301,14 @@ public final class Parser {
             return new Ast.Stmt.For(name, expr, stmtList);
         }
         else{
-            throw new ParseException("Missing the END", tokens.index-1);
+            if(tokens.has(0)){
+                throw ParseError("Missing the END");
+            }else {
+                throw ParseError("Missing the END");
+
+            }
+            //if that checks if token.has 0 == true token.get(0).index
+            //else prev token index(tokens.get(-1)) + prev tokenlenght=> tokens.get(-1)
         }
     }
 
@@ -310,11 +333,11 @@ public final class Parser {
                 return new Ast.Stmt.While(expr, stmtList);
             }
             else{
-                throw new ParseException("Missing the END", tokens.index-1);
+                throw ParseError("Missing the END");
             }
 
         }else{
-            throw new ParseException("Invalid while statement syntax", tokens.index);
+            throw ParseError("Invalid while statement syntax");
         }
     }
 
@@ -326,11 +349,11 @@ public final class Parser {
     public Ast.Stmt.Return parseReturnStatement() throws ParseException {
         //'RETURN' expression ';'
         if(match(";")){
-            throw new ParseException("Return statement is missing the expression", tokens.index);
+            throw ParseError("Return statement is missing the expression");
         }
         Ast.Expr expr = parseExpression();
         if(!match(";")){
-            throw new ParseException("Missing a ;", tokens.index);
+            throw ParseError("Missing a ;");
         }
         return new Ast.Stmt.Return(expr);
     }
@@ -409,7 +432,6 @@ public final class Parser {
      * Parses the {@code secondary-expression} rule.
      */
     public Ast.Expr parseSecondaryExpression() throws ParseException {
-        //throw new UnsupportedOperationException(); //TODO
         // secondary_expression ::= primary_expression (  '.' identifier (   '(' (expression (',' expression)*)? ')'  )?  )*
         Ast.Expr expr = parsePrimaryExpression();
         while(match(".")){
@@ -421,7 +443,7 @@ public final class Parser {
                primExpr = new Ast.Expr.Function(Optional.of(expr), ((Ast.Expr.Function) primExpr).getName(), ((Ast.Expr.Function) primExpr).getArguments());
            }
            else{
-               throw new ParseException("Invalid expression", tokens.index);
+               throw ParseError("Invalid expression");
            }
            expr = primExpr;
         }
@@ -491,7 +513,7 @@ public final class Parser {
             //'(' expression ')'
             Ast.Expr expr = parseExpression();
             if(!match(")")){
-                throw new ParseException("Expected closing parenthesis", tokens.index);
+                throw ParseError("Expected closing parenthesis");
             }
             return new Ast.Expr.Group(expr);
         }
@@ -508,7 +530,7 @@ public final class Parser {
                     arguments.add(parseExpression());
                 }
                 if(!match(")")){
-                    throw new ParseException("Expected closing parenthesis", tokens.index);
+                    throw ParseError("Expected closing parenthesis");
                 }
                 return new Ast.Expr.Function(Optional.empty(), name, arguments);
             }
@@ -516,7 +538,7 @@ public final class Parser {
         }
 
         else{
-            throw new ParseException("Invalid Primary Exception", tokens.index);
+            throw ParseError("Invalid Primary Exception");
         }
     }
 
@@ -532,7 +554,6 @@ public final class Parser {
      */
     // Peeking at tokens, one object at a time
     private boolean peek(Object... patterns) {
-        //throw new UnsupportedOperationException();
         for(int i = 0; i < patterns.length; i++){
             if(!tokens.has(i)){
                 return false;
@@ -561,7 +582,6 @@ public final class Parser {
      */
     //Same matching as peek. Advances stream index (consume) the elements when matched
     private boolean match(Object... patterns) {
-        //throw new UnsupportedOperationException();
         boolean peek = peek(patterns);
         if(peek){
             for(int i = 0; i < patterns.length; i++){

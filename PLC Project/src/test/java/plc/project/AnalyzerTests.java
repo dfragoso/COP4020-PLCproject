@@ -55,6 +55,19 @@ public final class AnalyzerTests {
                                 )), ast -> ast.setFunction(new Environment.Function("print", "System.out.println", Arrays.asList(Environment.Type.ANY), Environment.Type.NIL, args -> Environment.NIL))))
                         )), ast -> ast.setFunction(new Environment.Function("main", "main", Arrays.asList(), Environment.Type.INTEGER, args -> Environment.NIL)))
                 ),
+                Arguments.of("No explicit return type",
+                        // DEF main() DO print("Hello, World!"); END
+                        new Ast.Method("empty", Arrays.asList(), Arrays.asList(), Optional.empty(), Arrays.asList(
+                                new Ast.Stmt.Expression(new Ast.Expr.Function(Optional.empty(), "print", Arrays.asList(
+                                        new Ast.Expr.Literal("Hello, World!")
+                                )))
+                        )),
+                        init(new Ast.Method("empty", Arrays.asList(), Arrays.asList(), Optional.empty(), Arrays.asList(
+                                new Ast.Stmt.Expression(init(new Ast.Expr.Function(Optional.empty(), "print", Arrays.asList(
+                                        init(new Ast.Expr.Literal("Hello, World!"), ast -> ast.setType(Environment.Type.STRING))
+                                )), ast -> ast.setFunction(new Environment.Function("print", "System.out.println", Arrays.asList(Environment.Type.ANY), Environment.Type.NIL, args -> Environment.NIL))))
+                        )), ast -> ast.setFunction(new Environment.Function("empty", "empty", Arrays.asList(), Environment.Type.NIL, args -> Environment.NIL)))
+                ),
                 Arguments.of("Return Type Mismatch",
                         // DEF increment(num: Integer): Decimal DO RETURN num + 1; END
                         new Ast.Method("increment", Arrays.asList("num"), Arrays.asList("Integer"), Optional.of("Decimal"), Arrays.asList(

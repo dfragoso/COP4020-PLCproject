@@ -40,15 +40,17 @@ public final class Generator implements Ast.Visitor<Void> {
         //For source, I need to create a class
         // create a "class Main {"
         print("public class Main {");
-        newline(indent);
-        newline(++indent);
+        indent++;
         // declare the fields
-        if(!ast.getFields().isEmpty()){
-            for (int i = 0; i < ast.getFields().size(); i++){
-                print(ast.getFields().get(i));
-                newline(indent);
+        for (int i = 0; i < ast.getFields().size(); i++){
+            if(i==0){
+                newline(0);
             }
+            newline(indent);
+            print(ast.getFields().get(i));
         }
+        newline(0);
+        newline(indent);
         //declare "public static void main (String[] args){
         //            System.exit(new Main().main());
         //         {
@@ -60,17 +62,15 @@ public final class Generator implements Ast.Visitor<Void> {
 
         // declare each of our methods (VISIT each of the methods!!!)
         // one of our methods is called main()!
-        newline(0);
-        newline(indent);
-        if(!ast.getMethods().isEmpty()){
-            for(int i = 0; i < ast.getMethods().size(); i++){
-                visit(ast.getMethods().get(i));
-                newline(0);
-            }
+        for(int i = 0; i < ast.getMethods().size(); i++){
+            newline(0);
+            newline(indent);
+            print(ast.getMethods().get(i));
         }
 
         // print "}" to close the class Main
         newline(0);
+        newline(--indent);
         print("}");
 
         return null;
@@ -85,8 +85,8 @@ public final class Generator implements Ast.Visitor<Void> {
         followed by the variable value (expression). A semicolon should be generated at the end.
         *
         * */
-        print(ast.getTypeName(), " ", ast.getName());
-        if(!ast.getValue().isPresent()){
+        print(ast.getVariable().getType().getJvmName(), " ", ast.getName());
+        if(ast.getValue().isPresent()) {
             print(" = ", ast.getValue().get());
         }
 
@@ -117,16 +117,12 @@ public final class Generator implements Ast.Visitor<Void> {
         }
         print(") {");
         if(!ast.getStatements().isEmpty()){
-            newline(++indent);
-            int temp = 0;
+            indent++;
             for (int i = 0; i < ast.getStatements().size(); i++) {
+                newline(indent);
                 print(ast.getStatements().get(i));
-                if(i == ast.getStatements().size()-1){
-                    newline(--indent);
-                }else{
-                    newline(indent);
-                }
             }
+            newline(--indent);
         }
         print("}");
 
@@ -161,6 +157,7 @@ public final class Generator implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Stmt.Assignment ast) {
+
         print(ast.getReceiver(), " = ", ast.getValue(), ";");
         return null;
     }
@@ -205,15 +202,12 @@ public final class Generator implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Stmt.For ast) {
-        print("for (", ast.getValue().getType().getJvmName(), " ", ast.getName(), " ", ":", " ", ast.getValue());
-        print(" {");
-        newline(++indent);
+        print("for (", "int", " ", ast.getName(), " ", ":", " ", ast.getValue());
+        print(") {");
+        indent++;
         for(int i = 0; i < ast.getStatements().size(); i++){
             //check if newline and indent are needed
-            if(i != 0){
-                //setup the next line
-                newline(indent);
-            }
+            newline(indent);
             //print the next statement
             print(ast.getStatements().get(i));
         }
@@ -281,9 +275,9 @@ public final class Generator implements Ast.Visitor<Void> {
     public Void visit(Ast.Expr.Binary ast) {
         print(ast.getLeft(), " ");
 
-        if(ast.getOperator() == "AND"){
+        if(ast.getOperator().equals("AND")){
             print("&&");
-        }else if(ast.getOperator() == "OR"){
+        }else if(ast.getOperator().equals("OR")){
             print("||");
         }else {
             print(ast.getOperator());
@@ -298,7 +292,7 @@ public final class Generator implements Ast.Visitor<Void> {
     public Void visit(Ast.Expr.Access ast) {
         //If the expression has a receiver, evaluate it and return the value of the appropriate field,
         if(ast.getReceiver().isPresent()){
-            print(ast.getReceiver(), ".");
+            print(ast.getReceiver().get(), ".");
         }
         // otherwise return the value of the appropriate variable in the current scope.
         print(ast.getVariable().getJvmName());
