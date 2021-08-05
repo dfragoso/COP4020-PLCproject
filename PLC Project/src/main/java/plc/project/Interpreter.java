@@ -1,7 +1,5 @@
 package plc.project;
 
-import javafx.print.PageLayout;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
@@ -92,14 +90,52 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Assignment ast) {
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
         //if receiever is present, visit reciever and set field with the reciever object
+        /*if(ast.getReceiver() instanceof Ast.Expr.Access){
+            if (((Ast.Expr.Access) ast.getReceiver()).getReceiver().isPresent()) {
+            }
+        }
+        else {
+            //why cant i get name
+            scope.lookupVariable(visit(ast.getValue()).toString());
+        }*/
+        return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.If ast) {
         //Creates a new scope since it is a stmt block
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        if(requireType(Boolean.class, visit(ast.getCondition()))) {
+            if(ast.getCondition().equals(true)) {
+                while (requireType(Boolean.class, visit(ast.getCondition()))){
+                    try {
+                        scope = new Scope(scope);
+                        for(Ast.Stmt stmt : ast.getThenStatements()){
+                            visit( stmt );
+                        }
+                        //ast.getStatement().forEach(this::visit);
+                    }finally {
+                        scope = scope.getParent();
+                    }
+                }
+            }
+            else {
+                while (requireType(Boolean.class, visit(ast.getCondition()))){
+                    try {
+                        scope = new Scope(scope);
+                        for(Ast.Stmt stmt : ast.getElseStatements()){
+                            visit( stmt );
+                        }
+                        //ast.getStatement().forEach(this::visit);
+                    }finally {
+                        scope = scope.getParent();
+                    }
+                }
+            }
+        }
+        return Environment.NIL;
     }
 
     @Override
@@ -178,12 +214,12 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 //break;
             case "OR":
                 Ast.Expr.Literal trueTemp = new Ast.Expr.Literal(true);
-                if(requireType(Boolean.class, visit(ast.getLeft()))){
+                if(requireType(Boolean.class, visit(ast.getLeft()))|| !requireType(Boolean.class, visit(ast.getLeft()))){
                     if(ast.getLeft().equals(trueTemp)){
                         return Environment.create(true);
                     }
                     else {
-                        if(requireType(Boolean.class, visit(ast.getRight()))){
+                        if(requireType(Boolean.class, visit(ast.getRight()))|| !requireType(Boolean.class, visit(ast.getRight()))){
                             if(ast.getRight().equals(trueTemp)){
                                 return Environment.create(true) ;
                             }
