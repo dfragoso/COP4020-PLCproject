@@ -383,5 +383,4 @@ final class InterpreterTests {
         }
         return interpreter.getScope();
     }
-
 }

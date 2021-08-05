@@ -21,7 +21,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
             return Environment.NIL;
         });
         scope.defineFunction("logarithm", 1, arg_list -> {
-            if(!(arg_list.get(0).getValue() instanceof BigDecimal)){
+            if (!(arg_list.get(0).getValue() instanceof BigDecimal)) {
                 throw new RuntimeException("Expected type BigDecimal, received" +
                         arg_list.get(0).getValue().getClass().getName() + ".");
             }
@@ -54,10 +54,10 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Field ast) {
-        if(ast.getValue().isPresent()){
+        if (ast.getValue().isPresent()) {
             //scope has been already been defined
-            scope.defineVariable( ast.getName(), visit(ast.getValue().get()) );
-        }else{
+            scope.defineVariable(ast.getName(), visit(ast.getValue().get()));
+        } else {
             scope.defineVariable(ast.getName(), Environment.NIL);
         }
         return Environment.NIL;
@@ -66,7 +66,35 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Method ast) {
         //Creates a new scope since it is a stmt block
-        throw new UnsupportedOperationException(); //TODO
+        //throw new UnsupportedOperationException(); //TODO
+        //The callback function (lambda) should implement the behavior of calling this method
+        scope = new Scope(scope);
+
+        try {
+            //Set the scope to be a new child of the scope where the function was defined
+            // (hint: you need to capture this in a variable).
+            //Remember to restore the scope when finished!
+            Scope temp = scope;
+            scope = new Scope(scope);
+
+            //Define variables for the incoming arguments, using the parameter names. You may
+            //assume the correct number of arguments are provided (since the arity is checked elsewhere).
+            for (int i = 0; i < ast.getParameters().size(); i++) {
+                //scope.defineVariable(ast.getParameters().get(i), );
+            }
+            //Evaluate the methods statements. Returns the value contained in a
+            // Return exception if thrown, otherwise NIL.
+            /*try {
+                for (Ast.Stmt stmt : ast.getStatements()) {
+                    visit(stmt);
+                    //what
+                }
+            }*/
+
+        } finally {
+            scope = scope.getParent();
+        }
+        return Environment.NIL;
     }
 
     @Override
@@ -90,49 +118,41 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Assignment ast) {
-        //throw new UnsupportedOperationException(); //TODO
-        //if receiever is present, visit reciever and set field with the reciever object
-        /*if(ast.getReceiver() instanceof Ast.Expr.Access){
-            if (((Ast.Expr.Access) ast.getReceiver()).getReceiver().isPresent()) {
+        if (ast.getReceiver() instanceof Ast.Expr.Access) {
+            Ast.Expr.Access temp = (Ast.Expr.Access) ast.getReceiver();
+            if (temp.getReceiver().isPresent()) {
+                visit(temp.getReceiver().get()).setField(temp.getName(), visit(ast.getValue()));
+            } else {
+                scope.lookupVariable(temp.getName()).setValue(visit(ast.getValue()));
             }
         }
         else {
-            //why cant i get name
-            scope.lookupVariable(visit(ast.getValue()).toString());
-        }*/
+            throw new RuntimeException("Invalid type, must be Access");
+        }
         return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.If ast) {
         //Creates a new scope since it is a stmt block
-        //throw new UnsupportedOperationException(); //TODO
         if(requireType(Boolean.class, visit(ast.getCondition()))) {
-            if(ast.getCondition().equals(true)) {
-                while (requireType(Boolean.class, visit(ast.getCondition()))){
-                    try {
-                        scope = new Scope(scope);
-                        for(Ast.Stmt stmt : ast.getThenStatements()){
-                            visit( stmt );
-                        }
-                        //ast.getStatement().forEach(this::visit);
-                    }finally {
-                        scope = scope.getParent();
-                    }
+            try {
+                scope = new Scope(scope);
+                for (Ast.Stmt stmt : ast.getThenStatements()) {
+                    visit(stmt);
                 }
+            } finally {
+                scope = scope.getParent();
             }
-            else {
-                while (requireType(Boolean.class, visit(ast.getCondition()))){
-                    try {
-                        scope = new Scope(scope);
-                        for(Ast.Stmt stmt : ast.getElseStatements()){
-                            visit( stmt );
-                        }
-                        //ast.getStatement().forEach(this::visit);
-                    }finally {
-                        scope = scope.getParent();
-                    }
+        }
+        else {
+            try {
+                scope = new Scope(scope);
+                for(Ast.Stmt stmt : ast.getElseStatements()){
+                    visit(stmt);
                 }
+            }finally {
+                scope = scope.getParent();
             }
         }
         return Environment.NIL;
@@ -141,8 +161,19 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Stmt.For ast) {
         //Creates a new scope since it is a stmt block
-        throw new UnsupportedOperationException(); //TODO
-    }
+        for(Object object : requireType(Iterable.class, visit(ast.getValue())) ){
+                try {
+                   scope = new Scope(scope);
+                   scope.defineVariable(ast.getName(),(Environment.PlcObject) object);
+                    for(Ast.Stmt stmt : ast.getStatements()){
+                        visit( stmt );
+                    }
+                } finally {
+                    scope = scope.getParent();
+                }
+            }
+        return Environment.NIL;
+        }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.While ast) {
