@@ -43,7 +43,13 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     public Environment.PlcObject visit(Ast.Source ast) {
         //Source does not create a new scope , because it will use the base scope already created
         // at the instantiation of the interpreter
-        throw new UnsupportedOperationException(); //TODO
+        for (int i = 0; i < ast.getFields().size(); i++) {
+            visit(ast.getFields().get(i));
+        }
+        for (int i = 0; i < ast.getMethods().size(); i++) {
+            visit(ast.getMethods().get(i));
+        }
+        return scope.lookupFunction("main", 0).invoke(new ArrayList<>());
     }
 
     @Override
@@ -65,8 +71,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Expression ast) {
-        //throw new UnsupportedOperationException(); //TODO
-
+        visit(ast.getExpression());
         return Environment.NIL;
     }
 
@@ -86,6 +91,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Assignment ast) {
         throw new UnsupportedOperationException(); //TODO
+        //if receiever is present, visit reciever and set field with the reciever object
     }
 
     @Override
@@ -119,12 +125,11 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Return ast) {
-        throw new UnsupportedOperationException(); //TODO
+        throw new Return(visit(ast.getValue()));
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Literal ast) {
-        //throw new UnsupportedOperationException(); //TODO
         if(ast.getLiteral() != null){
             return Environment.create(ast.getLiteral());
         }else{
@@ -134,26 +139,22 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Group ast) {
-        //throw new UnsupportedOperationException(); //TODO
         //Evaluates the contained expression, returning it's value.
         // (1)->1 , (1 + 10)->11
         return visit(ast.getExpression());
-//        if(ast.getExpression().){
-//            return new Environment.PlcObject(scope, ast.getType().getName());
-//        }else{
-//            throw new UnsupportedOperationException(); //TODO
-//        }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Binary ast) {
-        //throw new UnsupportedOperationException(); //TODO
         //Evaluates arguments based on the specific binary operator,
         // returning the appropriate result for the operation
         // (hint: use requireType and Environment.create as needed)
         //requireType(Boolean.class, visit(ast.getCondition()))
+
+
         Object leftHand = visit(ast.getLeft()).getValue();
         Object rightHand = visit(ast.getRight()).getValue();
+
         switch (ast.getOperator()){
             case "AND":
                 Ast.Expr.Literal falseTemp = new Ast.Expr.Literal(false);
@@ -175,15 +176,15 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 }else{
                     throw new RuntimeException("Invalid operands for AND operation");
                 }
-                //break;
+
             case "OR":
                 Ast.Expr.Literal trueTemp = new Ast.Expr.Literal(true);
-                if(requireType(Boolean.class, visit(ast.getLeft())) || !requireType(Boolean.class, visit(ast.getLeft()))){
+                if(requireType(Boolean.class, visit(ast.getLeft()))){
                     if(ast.getLeft().equals(trueTemp)){
                         return Environment.create(true);
                     }
                     else {
-                        if(requireType(Boolean.class, visit(ast.getRight())) || !requireType(Boolean.class, visit(ast.getRight()))){
+                        if(requireType(Boolean.class, visit(ast.getRight()))){
                             if(ast.getRight().equals(trueTemp)){
                                 return Environment.create(true) ;
                             }
@@ -192,7 +193,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                             throw new RuntimeException("Invalid operands for OR operation");
                         }
                     }
-                    return Environment.create(true);
+                    return Environment.create(false);
                 }
             case "+":
                 if(leftHand.getClass() == BigInteger.class && rightHand.getClass() == BigInteger.class){
@@ -311,18 +312,34 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Access ast) {
-        throw new UnsupportedOperationException(); //TODO
+        if(ast.getReceiver().isPresent()){
+            return visit(ast.getReceiver().get()).getField(ast.getName()).getValue();
+        }
+        else {
+            if(ast.getName().equals("undefined")){
+                return Environment.NIL;
+            }
+            return scope.lookupVariable(ast.getName()).getValue();
+        }
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Expr.Function ast) {
-        throw new UnsupportedOperationException(); //TODO
-        //Environment.Function func = new Environment.Function()
-//        if(ast.getReceiver().isPresent()){
-//            scope.defineFunction(ast.getName(), );
-//        }
-        //return Environment.PlcObject;
+
+        //arraylist (type PLCObject) of ast arguments
+        ArrayList<Environment.PlcObject> argumentArray  = new ArrayList<Environment.PlcObject>();
+        for (int i = 0; i < ast.getArguments().size(); i++) {
+            argumentArray.add(visit(ast.getArguments().get(i)));
+        }
+
+        if(ast.getReceiver().isPresent()){
+            return visit(ast.getReceiver().get()).callMethod(ast.getName(), argumentArray);
+        }
+        else {
+            return scope.lookupFunction(ast.getName(), ast.getArguments().size()).invoke(argumentArray);
+        }
     }
+    //return Environment.PlcObject;
 
     /**
      * Helper function to ensure an object is of the appropriate type.
