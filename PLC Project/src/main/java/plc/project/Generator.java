@@ -51,9 +51,7 @@ public final class Generator implements Ast.Visitor<Void> {
         }
         newline(0);
         newline(indent);
-        //declare "public static void main (String[] args){
-        //            System.exit(new Main().main());
-        //         {
+
         print("public static void main(String[] args) {");
         newline(++indent);
         print("System.exit(new Main().main());");
@@ -100,12 +98,13 @@ public final class Generator implements Ast.Visitor<Void> {
         /*The method should begin with the method's JVM type name
         followed by the method name,
         * */
-        if (ast.getFunction().getJvmName() == "main") {
-            print ("int ");
-        }
-        else {
-            print(ast.getFunction().getJvmName(), " ");
-        }
+//        if (ast.getFunction().getJvmName() == "main") {
+//            print ("int ");
+//        }
+//        else {
+//            print(ast.getFunction().getJvmName(), " ");
+//        }
+        print(ast.getFunction().getReturnType().getJvmName(), " ");
         print(ast.getFunction().getName(), "(");
         //Then the method should generate a comma-separated list of the method parameters surrounded by parenthesis.
         for(int i = 0; i < ast.getParameters().size(); i++){
@@ -154,14 +153,12 @@ public final class Generator implements Ast.Visitor<Void> {
         print(";");
         return null;
     }
-
     @Override
     public Void visit(Ast.Stmt.Assignment ast) {
 
         print(ast.getReceiver(), " = ", ast.getValue(), ";");
         return null;
     }
-
     @Override
     public Void visit(Ast.Stmt.If ast) {
         //only if with statements

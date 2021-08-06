@@ -122,23 +122,33 @@ public final class Parser {
                  parameters.add(param);
                 if(match(":")){
                     if(match(Token.Type.IDENTIFIER)){
-                        String paramType = tokens.get(0).getLiteral();
+                        String paramType = tokens.get(-1).getLiteral();
                         parameterTypeNames.add(paramType);
+                    }else{
+                        throw ParseError("Missing type");
                     }
+                }else{
+                    throw ParseError("Missing type");
                 }
             }
-            if(match(",")){
+            while(match(",")){
                 while(match(Token.Type.IDENTIFIER)){
                     String param = tokens.get(-1).getLiteral();
                     parameters.add(param);
                     if(match(":")){
                         if(match(Token.Type.IDENTIFIER)){
-                            String paramType = tokens.get(0).getLiteral();
+                            String paramType = tokens.get(-1).getLiteral();
                             parameterTypeNames.add(paramType);
+                        }else{
+                            throw ParseError("Missing type");
                         }
+                    }else{
+                        throw ParseError("Missing type");
                     }
                 }
             }
+        }else{
+            throw ParseError("Missing open parenthesis");
         }
         if(!match(")")){
             throw ParseError("Missing closing parenthesis");

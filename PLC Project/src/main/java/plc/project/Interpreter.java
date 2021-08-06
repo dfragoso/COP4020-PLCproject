@@ -21,7 +21,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
             return Environment.NIL;
         });
         scope.defineFunction("logarithm", 1, arg_list -> {
-            if(!(arg_list.get(0).getValue() instanceof BigDecimal)){
+            if (!(arg_list.get(0).getValue() instanceof BigDecimal)) {
                 throw new RuntimeException("Expected type BigDecimal, received" +
                         arg_list.get(0).getValue().getClass().getName() + ".");
             }
@@ -54,10 +54,10 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Field ast) {
-        if(ast.getValue().isPresent()){
+        if (ast.getValue().isPresent()) {
             //scope has been already been defined
-            scope.defineVariable( ast.getName(), visit(ast.getValue().get()) );
-        }else{
+            scope.defineVariable(ast.getName(), visit(ast.getValue().get()));
+        } else {
             scope.defineVariable(ast.getName(), Environment.NIL);
         }
         return Environment.NIL;
@@ -65,8 +65,29 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Method ast) {
-        //Creates a new scope since it is a stmt block
-        throw new UnsupportedOperationException(); //TODO
+        //The callback function (lambda) should implement the behavior of calling this method
+        scope.defineFunction(ast.getName(), ast.getParameters().size(), parameters -> {
+            //Define variables for the incoming arguments, using the parameter names.
+            scope = new Scope(scope);
+            try {
+                for (int i = 0; i < ast.getParameters().size(); i++) {
+                    scope.defineVariable(ast.getParameters().get(i),
+                            parameters.get(i));
+                }
+                //Evaluate the methods statements. Returns the value contained in a Return exception if thrown, otherwise NIL.
+                for (int i = 0; i < ast.getStatements().size(); i++) {
+                    try {
+                        visit(ast.getStatements().get(i));
+                    }catch (Return e){
+                        return e.value;
+                    }
+                }
+            }finally {
+                scope = scope.getParent();
+            }
+            return Environment.NIL;
+        });
+        return Environment.NIL;
     }
 
     @Override
@@ -90,20 +111,61 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.Assignment ast) {
-        throw new UnsupportedOperationException(); //TODO
-        //if receiever is present, visit reciever and set field with the reciever object
+        if (ast.getReceiver() instanceof Ast.Expr.Access) {
+            Ast.Expr.Access temp = (Ast.Expr.Access) ast.getReceiver();
+            if (temp.getReceiver().isPresent()) {
+                visit(temp.getReceiver().get()).setField(temp.getName(), visit(ast.getValue()));
+            } else {
+                scope.lookupVariable(temp.getName()).setValue(visit(ast.getValue()));
+            }
+        }
+        else {
+            throw new RuntimeException("Invalid type, must be Access");
+        }
+        return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.If ast) {
         //Creates a new scope since it is a stmt block
-        throw new UnsupportedOperationException(); //TODO
+        if(requireType(Boolean.class, visit(ast.getCondition()))) {
+            try {
+                scope = new Scope(scope);
+                for (Ast.Stmt stmt : ast.getThenStatements()) {
+                    visit(stmt);
+                }
+            } finally {
+                scope = scope.getParent();
+            }
+        }
+        else {
+            try {
+                scope = new Scope(scope);
+                for(Ast.Stmt stmt : ast.getElseStatements()){
+                    visit(stmt);
+                }
+            }finally {
+                scope = scope.getParent();
+            }
+        }
+        return Environment.NIL;
     }
 
     @Override
     public Environment.PlcObject visit(Ast.Stmt.For ast) {
         //Creates a new scope since it is a stmt block
-        throw new UnsupportedOperationException(); //TODO
+        for(Object object : requireType(Iterable.class, visit(ast.getValue())) ){
+            try {
+                scope = new Scope(scope);
+                scope.defineVariable(ast.getName(),(Environment.PlcObject) object);
+                for(Ast.Stmt stmt : ast.getStatements()){
+                    visit( stmt );
+                }
+            } finally {
+                scope = scope.getParent();
+            }
+        }
+        return Environment.NIL;
     }
 
     @Override
@@ -150,11 +212,8 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         // returning the appropriate result for the operation
         // (hint: use requireType and Environment.create as needed)
         //requireType(Boolean.class, visit(ast.getCondition()))
-
-
         Object leftHand = visit(ast.getLeft()).getValue();
         Object rightHand = visit(ast.getRight()).getValue();
-
         switch (ast.getOperator()){
             case "AND":
                 Ast.Expr.Literal falseTemp = new Ast.Expr.Literal(false);
@@ -176,15 +235,15 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 }else{
                     throw new RuntimeException("Invalid operands for AND operation");
                 }
-
+                //break;
             case "OR":
                 Ast.Expr.Literal trueTemp = new Ast.Expr.Literal(true);
-                if(requireType(Boolean.class, visit(ast.getLeft()))){
+                if(requireType(Boolean.class, visit(ast.getLeft()))|| !requireType(Boolean.class, visit(ast.getLeft()))){
                     if(ast.getLeft().equals(trueTemp)){
                         return Environment.create(true);
                     }
                     else {
-                        if(requireType(Boolean.class, visit(ast.getRight()))){
+                        if(requireType(Boolean.class, visit(ast.getRight()))|| !requireType(Boolean.class, visit(ast.getRight()))){
                             if(ast.getRight().equals(trueTemp)){
                                 return Environment.create(true) ;
                             }

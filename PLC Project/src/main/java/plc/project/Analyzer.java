@@ -84,13 +84,24 @@ public final class Analyzer implements Ast.Visitor<Void> {
         }else{
             returnTypeName = Environment.getType(ast.getReturnTypeName().get());
         }
+
+        //setting function in the ast and the scope
         ast.setFunction(scope.defineFunction(name, name, parameterTypeNames, returnTypeName, args->Environment.NIL));
 
-        scope = new Scope(scope);
-        for (int i = 0; i < ast.getStatements().size(); i++) {
-            this.visit(ast.getStatements().get(i));
+        try {
+            scope = new Scope(scope);
+            for (int i = 0; i < ast.getParameters().size(); i++) {
+                scope.defineVariable(ast.getParameters().get(i), ast.getParameters().get(i), parameterTypeNames.get(i), Environment.NIL);
+            }
+            method = ast;
+            for (int i = 0; i < ast.getStatements().size(); i++) {
+                this.visit(ast.getStatements().get(i));
+            }
+        }finally {
             scope = scope.getParent();
+            method = null;
         }
+
 
         return null;
     }
@@ -175,10 +186,15 @@ public final class Analyzer implements Ast.Visitor<Void> {
         if(ast.getStatements().isEmpty()){
             throw new RuntimeException("Missing statements");
         }
-        scope = new Scope(scope);
-        for (int i = 0; i < ast.getStatements().size(); i++) {
-            this.visit(ast.getStatements().get(i));
-            scope.defineVariable(ast.getName(), ast.getName(), Environment.Type.INTEGER, Environment.NIL);
+        try {
+            scope = new Scope(scope);
+            for (int i = 0; i < ast.getStatements().size(); i++) {
+                scope.defineVariable(ast.getName(), ast.getName(), Environment.Type.INTEGER, Environment.NIL);
+            }
+            for (int i = 0; i < ast.getStatements().size(); i++) {
+                this.visit(ast.getStatements().get(i));
+            }
+        }finally {
             scope = scope.getParent();
         }
 
@@ -203,6 +219,7 @@ public final class Analyzer implements Ast.Visitor<Void> {
     @Override
     public Void visit(Ast.Stmt.Return ast) {
         visit(ast.getValue());
+        requireAssignable(method.getFunction().getReturnType(), ast.getValue().getType());
 
         return null;
     }
@@ -330,17 +347,21 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Expr.Function ast) {
+        int firstArgIndex = 1;
         if(ast.getReceiver().isPresent()){
             visit(ast.getReceiver().get());
             ast.setFunction(ast.getReceiver().get().getType().getMethod(ast.getName(), ast.getArguments().size()));
-            for (int i = 1; i < ast.getArguments().size(); i++) {
-                requireAssignable(ast.getFunction().getParameterTypes().get(i), ast.getArguments().get(i).getType());
+            for (int i = 0; i < ast.getArguments().size(); i++) {
+                requireAssignable(ast.getFunction().getParameterTypes().get(firstArgIndex), ast.getArguments().get(i).getType());
+                firstArgIndex++;
             }
 
         }else {
             ast.setFunction(scope.lookupFunction(ast.getName(), ast.getArguments().size()));
             for (int i = 0; i < ast.getArguments().size(); i++) {
                 visit(ast.getArguments().get(i));
+            }
+            for (int i = 0; i < ast.getArguments().size(); i++) {
                 requireAssignable(ast.getFunction().getParameterTypes().get(i), ast.getArguments().get(i).getType());
             }
         }
