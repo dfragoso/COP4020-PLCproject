@@ -41,11 +41,11 @@ plc/project/ParseException.java
  plc.project.ParseException
 plc/project/Scope.java
  plc.project.Scope
-plc/project/Generator.java
- plc.project.Generator
 plc/project/Analyzer.java
  plc.project.Analyzer
 plc/project/Interpreter.java
  plc.project.Interpreter
  plc.project.Interpreter$1
  plc.project.Interpreter$Return
+plc/project/Generator.java
+ plc.project.Generator

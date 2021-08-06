@@ -98,12 +98,6 @@ public final class Generator implements Ast.Visitor<Void> {
         /*The method should begin with the method's JVM type name
         followed by the method name,
         * */
-//        if (ast.getFunction().getJvmName() == "main") {
-//            print ("int ");
-//        }
-//        else {
-//            print(ast.getFunction().getJvmName(), " ");
-//        }
         print(ast.getFunction().getReturnType().getJvmName(), " ");
         print(ast.getFunction().getName(), "(");
         //Then the method should generate a comma-separated list of the method parameters surrounded by parenthesis.
