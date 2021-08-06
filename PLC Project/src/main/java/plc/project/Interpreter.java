@@ -65,12 +65,13 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Method ast) {
-        Scope stateCapture = scope;
+        Scope stateCapture = scope; //capturing obj scope
 
         //The callback function (lambda) should implement the behavior of calling this method
         scope.defineFunction(ast.getName(), ast.getParameters().size(), parameters -> {
             //Define variables for the incoming arguments, using the parameter names.
-            scope = new Scope(scope);
+            Scope currentScope = scope; //capturing the current where the function is being called
+            scope = new Scope(stateCapture);
             try {
                 for (int i = 0; i < ast.getParameters().size(); i++) {
                     scope.defineVariable(ast.getParameters().get(i),
@@ -85,7 +86,7 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                     }
                 }
             }finally {
-                scope = stateCapture;
+                scope = currentScope;
             }
             return Environment.NIL;
         });

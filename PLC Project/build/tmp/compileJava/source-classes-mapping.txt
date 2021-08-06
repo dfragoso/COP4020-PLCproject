@@ -43,9 +43,9 @@ plc/project/Scope.java
  plc.project.Scope
 plc/project/Analyzer.java
  plc.project.Analyzer
+plc/project/Generator.java
+ plc.project.Generator
 plc/project/Interpreter.java
  plc.project.Interpreter
  plc.project.Interpreter$1
  plc.project.Interpreter$Return
-plc/project/Generator.java
- plc.project.Generator

@@ -103,7 +103,7 @@ public final class Generator implements Ast.Visitor<Void> {
         //Then the method should generate a comma-separated list of the method parameters surrounded by parenthesis.
         for(int i = 0; i < ast.getParameters().size(); i++){
             //Each parameter will consist of a JVM type name and the parameter name.
-            print(ast.getParameterTypeNames().get(i), " ", ast.getParameters().get(i));
+            print(ast.getFunction().getParameterTypes().get(i).getJvmName(), " ", ast.getParameters().get(i));
             if(i != ast.getParameters().size()-1){
                 print(", ");
             }
